@@ -1,0 +1,16 @@
+<!-- Inicio [Ov] de base de datos zaimella para bestech -->
+<datasource jndi-name="java:jboss/datasources/jdbc/Bestech01DS"
+    pool-name="Bestech01DS" enabled="true">
+    <connection-url>jdbc:oracle:thin:@192.168.5.6:1523:ZAITEST</connection-url>
+    <driver>oracle</driver>
+    <pool>
+        <min-pool-size>1</min-pool-size>
+        <max-pool-size>20</max-pool-size>
+        <prefill>true</prefill>
+    </pool>
+    <security>
+        <user-name>DATA</user-name>
+        <password>datatest2022</password>
+    </security>
+</datasource>
+<!-- Fin [Ov] de base de datos zaimella para bestech -->

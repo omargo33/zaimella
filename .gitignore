@@ -1,0 +1,3 @@
+*.war
+Articulos/target/*
+Cliente/target/*
