@@ -63,6 +63,8 @@ public class OrdenCompra {
 
     private String unidadMedida;
 
+    private String categoria;
+
     private Double cantidadRecibida;
     
     private Double costoUnidad;

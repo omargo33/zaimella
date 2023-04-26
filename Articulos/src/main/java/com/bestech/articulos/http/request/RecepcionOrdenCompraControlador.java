@@ -50,19 +50,21 @@ public class RecepcionOrdenCompraControlador extends ComonControlador {
      * @return
      */
     @PostMapping(value = "/", consumes = "application/json", produces = "application/json")
-    public RecepcionOrdenCompra createMonitor(@Valid @RequestBody RecepcionOrdenCompra recepcionOrdenCompra, HttpServletRequest request) {
+    public RecepcionOrdenCompra createMonitor(@Valid @RequestBody RecepcionOrdenCompra recepcionOrdenCompra,
+            HttpServletRequest request) {
         recepcionOrdenCompra = recepcionOrdenCompraServicio.insertarRecepcionOrdenCompra(recepcionOrdenCompra);
-        
-        log.error("Post mapping {}", recepcionOrdenCompra.getId());
+
+        recepcionOrdenCompraServicio.crearIniciarDetalle(recepcionOrdenCompra.getId());
 
         String respuesta = procesosServicios.procesarRecepcionOrdenCompra(recepcionOrdenCompra.getId());
 
-        if(respuesta.compareTo("ok") != 0) {
+        if (respuesta.compareTo("ok") != 0) {
+            recepcionOrdenCompraServicio.crearErrorDetalle(recepcionOrdenCompra.getId(), respuesta);
             throw new DataIntegrityViolationException(respuesta);
         }
-        
+
+        recepcionOrdenCompraServicio.crearFinalizarDetalle(recepcionOrdenCompra.getId());
         return recepcionOrdenCompra;
     }
 
-     
 }

@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.hibernate.exception.GenericJDBCException;
-import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;

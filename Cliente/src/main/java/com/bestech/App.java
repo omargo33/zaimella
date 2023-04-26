@@ -22,20 +22,21 @@ public class App {
 
         Consumo consumo = new Consumo();
         OrdenCompra ordenCompra = new OrdenCompra();
-        ordenCompra.setUsuario("usuarioJDE");
+        ordenCompra.setUsuario("AdminMP");
         ordenCompra.setNombreProveedor("4");
-        ordenCompra.setCentroCosto("1");
+        ordenCompra.setCentroCosto("16509");
         ordenCompra.setMotivo("1");
         ordenCompra.setIndiceItem("8");
         ordenCompra.setTipoDocumentoCompra("33");
         ordenCompra.setCompania("44");
         ordenCompra.setUnidadMedida("99");
         ordenCompra.setMoneda("DL");
-        ordenCompra.setBodegaRecepcion("104");
+        ordenCompra.setBodegaRecepcion("REPUESTOS PRINCIPAL");
         ordenCompra.setCantidadRecibida(33.1234);
-        ordenCompra.setModo("090");
+        ordenCompra.setModo("R");
         ordenCompra.setFecha(new Date());
         ordenCompra.setCostoUnidad(170.50);
+        ordenCompra.setCategoria("737006006");
 
         consumo.setOrdenCompra(ordenCompra);
 

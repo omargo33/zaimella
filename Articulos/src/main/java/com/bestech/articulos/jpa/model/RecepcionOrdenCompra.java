@@ -2,12 +2,15 @@ package com.bestech.articulos.jpa.model;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
@@ -26,7 +29,7 @@ import lombok.ToString;
  * id, usuario, usuariofecha, valortexto, valornumero, modo, compania,
  * tipodocumentocompra, numeroordencompra, fecha, codigoproveedor,
  * nombreproveedor, moneda, bodegarecepcion, centrocosto, motivo, linea,
- * codigoitem, indiceitem, unidadmedida, cantidadrecibida FROM
+ * codigoitem, indiceitem, unidadmedida, cantidadrecibida, herramienta FROM
  * t_bt01_recepcion_orden_compra"
  * 
  * Con secuenca para el ID en SQ_BT01_RECEPCION_ORDEN_ID
@@ -54,7 +57,7 @@ public class RecepcionOrdenCompra implements Serializable {
 
     @Column(name = "usuariofecha", columnDefinition = "DATETIME")
     @Temporal(TemporalType.TIMESTAMP)
-    @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date usuarioFecha;
 
     @Column(name = "valortexto", length = 256)
@@ -81,7 +84,7 @@ public class RecepcionOrdenCompra implements Serializable {
 
     @Column(name = "fecha", columnDefinition = "DATETIME")
     @Temporal(TemporalType.TIMESTAMP)
-    @JsonFormat(pattern="yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date fecha;
 
     @NotNull(message = "{not.null}")
@@ -125,10 +128,18 @@ public class RecepcionOrdenCompra implements Serializable {
     private String unidadMedida;
 
     @NotNull(message = "{not.null}")
+    @Column(name = "categoria", length = 32)
+    private String categoria;
+
+    @NotNull(message = "{not.null}")
     @Column(name = "cantidadrecibida")
     private Double cantidadRecibida;
-    
+
     @NotNull(message = "{not.null}")
     @Column(name = "costounidad")
     private Double costoUnidad;
+
+    @OneToMany(targetEntity = RecepcionOrdenDetalle.class)
+    @JoinColumn(name = "idrecepcionordencompra", referencedColumnName = "id")
+    private List<RecepcionOrdenDetalle> recepcionOrdenDetalle;
 }
