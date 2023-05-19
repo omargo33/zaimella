@@ -18,8 +18,6 @@ import com.bestech.articulos.jpa.model.RecepcionOrdenCompra;
 import com.bestech.articulos.servicio.ProcesosServicios;
 import com.bestech.articulos.servicio.RecepcionOrdenCompraServicio;
 
-import lombok.extern.slf4j.Slf4j;
-
 /**
  * Objeto para dar soporte a servicio REST de Menu
  * 
@@ -27,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
  * @date 2020-09-11
  * 
  */
-@Slf4j
 @RestController
 @RequestMapping(value = "/ordenes-compra")
 public class RecepcionOrdenCompraControlador extends ComonControlador {

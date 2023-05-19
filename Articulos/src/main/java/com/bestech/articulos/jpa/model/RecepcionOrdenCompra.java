@@ -35,6 +35,8 @@ import lombok.ToString;
  * Con secuenca para el ID en SQ_BT01_RECEPCION_ORDEN_ID
  * 
  * @author Bestech [Ov]
+ * @since 2023-05-19
+ * 
  */
 @Entity
 @Table(name = "t_bt01_recepcion_orden_compra", schema = "data")
