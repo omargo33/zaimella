@@ -19,7 +19,7 @@ import com.bestech.articulos.servicio.ProcesosServicios;
 import com.bestech.articulos.servicio.RecepcionOrdenCompraServicio;
 
 /**
- * Objeto para dar soporte a servicio REST de Menu
+ * Objeto para dar soporte a servicio REST de Ordenes de Compra.
  * 
  * @author Bestech [Ov]
  * @date 2020-09-11
