@@ -43,7 +43,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-@JsonIgnoreProperties({ "usuarioFecha" })
+@JsonIgnoreProperties({"usuarioFecha" })
 public class Articulo implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -108,5 +108,5 @@ public class Articulo implements Serializable {
 
     @OneToMany(targetEntity = ArticuloDetalle.class)
     @JoinColumn(name = "idarticulo", referencedColumnName = "id")
-    private List<ArticuloDetalle> archivoDetalle;
+    private List<ArticuloDetalle> articuloDetalle;
 }

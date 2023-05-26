@@ -1,6 +1,7 @@
 package com.bestech.articulos.servicio;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.transaction.Transactional;
 
@@ -43,6 +44,20 @@ public class ArticuloServicios {
      */
     public List<Articulo> findAll() {
         return articuloRepositorio.findAll();
+    }
+    
+
+    /**
+     * Metodo para buscar por indice del articulo
+     * @param id
+     * @return
+     */
+    public Articulo findById(Long id) {
+        return articuloRepositorio.findById(id).get();
+    }
+
+    public List<Articulo> findByCodigoItem(String codigoItem) {
+        return articuloRepositorio.findByCodigoItem(codigoItem);
     }
 
     /**

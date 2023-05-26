@@ -6,6 +6,7 @@ import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,7 +18,8 @@ import com.bestech.articulos.jpa.model.Articulo;
 import com.bestech.articulos.servicio.ArticuloServicios;
 import com.bestech.articulos.servicio.ProcesosServicios;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 /**
  * Objeto para dar soporte a servicio REST de Articulos.
@@ -36,9 +38,15 @@ public class ArticuloControlador extends ComonControlador {
     @Autowired
     private ProcesosServicios procesosServicios;
 
-    @GetMapping(value = "/")
-    public List<Articulo> getArticulo() {
-        return articuloServicios.findAll();
+
+    @GetMapping(value = "/{id}")
+    public Articulo getArticulo(@PathVariable Long id) {
+        return articuloServicios.findById(id);
+    }
+
+    @GetMapping(value = "/codigoItem={codigoItem}")
+    public List<Articulo> getArticulo(@PathVariable String codigoItem) {
+        return articuloServicios.findByCodigoItem(codigoItem);
     }
 
     /**
@@ -62,8 +70,10 @@ public class ArticuloControlador extends ComonControlador {
 
         articuloServicios.crearFinalizarDetalle(articulo.getId());
 
-        return articulo;
-    }
+        Long id=articulo.getId();
 
-    
+        articulo = articuloServicios.findById(id);
+
+        return articulo;
+    }    
 }
