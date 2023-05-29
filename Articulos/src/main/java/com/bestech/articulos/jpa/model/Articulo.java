@@ -62,11 +62,9 @@ public class Articulo implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Date usuarioFecha;
 
-    @NotNull(message = "{not.null}")
     @Column(name = "valortexto", length = 256)
     private String valorTexto;
 
-    @NotNull(message = "{not.null}")
     @Column(name = "valornumero")
     private Long valorNumero;
 

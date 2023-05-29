@@ -1,7 +1,6 @@
 package com.bestech.articulos.servicio;
 
 import java.util.List;
-import java.util.Optional;
 
 import javax.transaction.Transactional;
 
