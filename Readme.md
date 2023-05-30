@@ -24,6 +24,11 @@ http://pruebas.zaimella.com:8081/bestech/v1/swagger-ui.html
 http://pruebas.zaimella.com:8081/bestech/v1/swagger-ui/index.html
 
 https://localhost:8443/bestech/v1/ordenes-compra/
+
+
+http://pruebas.zaimella.com:8081/bestech/v1/swagger-ui/index.html
+
+
 Indice
 Recursos de instalacion:	1
 Standalone.xml	1

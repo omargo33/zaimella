@@ -1,0 +1,173 @@
+CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
+ --
+ -- autor:  Bestch
+ -- fecha:  2023-05-28
+ --
+ -- Package header
+ --
+ -- Variables globales
+    --
+    -- xml header     
+    G_SEGURIDADES         CLOB := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:orac="http://oracle.e1.bssv.?BSSV/">
+    <soapenv:Header>
+        <wsse:Security soapenv:mustUnderstand="1"
+            xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+            <wsse:UsernameToken wsu:Id="UsernameToken-8"
+                xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+                <wsse:Username>?usuario</wsse:Username>
+                <wsse:Password
+                    Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">
+                    ?clave</wsse:Password>
+            </wsse:UsernameToken>
+        </wsse:Security>
+    </soapenv:Header>';
+    --
+    -- xml body crear orden
+    G_BODY_CREAR     CLOB:='<soapenv:Body>
+        <orac:processSalesOrder>
+            <header>
+                <businessUnit>?unidadNegocio</businessUnit>
+                <company></company>
+                <currencyCodeTo>?codigoMoneda</currencyCodeTo>
+                <dateOrdered>?fechaOrden</dateOrdered>
+                <dateRequested>?fechaPedido</dateRequested>
+                <dateScheduledPick></dateScheduledPick>
+                <deliverTo>
+                    <entityId></entityId>
+                    <entityLongId></entityLongId>
+                    <entityTaxId></entityTaxId>
+                </deliverTo>
+                <detail>
+                    <agreementId></agreementId>
+                    <agreementSupplement></agreementSupplement>
+                    <businessUnit>?unidadNegocio</businessUnit>
+                    <businessUnitDestination></businessUnitDestination>
+                    <processing>
+                        <actionType></actionType>
+                        <useConfigurationRule></useConfigurationRule>
+                    </processing>
+                    <product>
+                        <configuration>
+                        </configuration>
+                        <description1></description1>
+                        <description2></description2>
+                        <item>
+                            <itemCatalog></itemCatalog>
+                            <itemCustomer></itemCustomer>
+                            <itemFreeForm></itemFreeForm>
+                            <itemId>?itemId</itemId>
+                            <itemProduct></itemProduct>
+                        </item>
+                    </product>
+                    <quantityBackOrdered></quantityBackOrdered>
+                    <quantityCanceled></quantityCanceled>
+                    <quantityOrdered>?cantidadOrden</quantityOrdered>
+                    <quantityShippable></quantityShippable>
+                    <reference></reference>
+                    <relatedOrder>
+                        <documentLineNumber></documentLineNumber>
+                        <relatedOrderKey>
+                            <documentCompany></documentCompany>
+                            <documentNumber></documentNumber>
+                            <documentTypeCode></documentTypeCode>
+                        </relatedOrderKey>
+                    </relatedOrder>
+                    <shipTo>
+                        <entityId>?enviarId</entityId>
+                        <entityLongId></entityLongId>
+                        <entityTaxId></entityTaxId>
+                    </shipTo>
+                    <statusCodeLast></statusCodeLast>
+                    <statusCodeNext></statusCodeNext>
+                    <supplier>
+                        <entityId></entityId>
+                        <entityLongId></entityLongId>
+                        <entityTaxId></entityTaxId>
+                    </supplier>
+                    <timePromisedDelivery></timePromisedDelivery>
+                    <timePromisedOriginal></timePromisedOriginal>
+                    <timePromisedShip></timePromisedShip>
+                    <timeRequested></timeRequested>
+                    <timeScheduledPick></timeScheduledPick>
+                    <unitOfMeasureCodeTransaction></unitOfMeasureCodeTransaction>
+                </detail>
+                <forwardedTo>
+                    <entityId></entityId>
+                    <entityLongId></entityLongId>
+                    <entityTaxId></entityTaxId>
+                </forwardedTo>
+                <holdOrderCode></holdOrderCode>
+                <invoicedTo>
+                    <entityId></entityId>
+                    <entityLongId></entityLongId>
+                    <entityTaxId></entityTaxId>
+                </invoicedTo>
+                <orderTakenBy></orderTakenBy>
+                <orderedBy></orderedBy>
+                <processing>
+                    <actionType>?tipoProcesamiento</actionType>
+                    <processingVersion>?versionProcesamiento</processingVersion>
+                </processing>
+                <rateExchange></rateExchange>
+                <soldTo>
+                    <customer>
+                        <entityId>?vendidoId</entityId>
+                    </customer>
+                </soldTo>
+            </header>
+        </orac:processSalesOrder>
+    </soapenv:Body>
+    </soapenv:Envelope>';
+    --
+    -- xml body confirmar orden
+    G_BODY_CONFIRMAR CLOB:='<env:Body>
+      <ns1:SalesShippingConfirmation>
+         <companyKeyEDIDocumentKeyCo>?documentoId</companyKeyEDIDocumentKeyCo>
+         <EDIDocumentNumber>?documentoNumero</EDIDocumentNumber>
+         <EDIDocumentType>?documentoTipo</EDIDocumentType>
+         <version>?version</version>
+      </ns1:SalesShippingConfirmation>
+   </env:Body>
+   </soapenv:Envelope>';
+ --
+ -- Tipos de datos
+    TYPE ARREGLO_TEXTO IS
+        TABLE OF VARCHAR2(256);
+ --
+ -- Procesar pedidos al servicio de jde.
+    PROCEDURE SP_CREAR_ORDEN_VENTA(
+        P_UNIDADNEGOCIO IN VARCHAR2,
+        P_CODIGOMONEDA IN VARCHAR2,
+        P_FECHAORDEN IN DATE,
+        P_FECHAPEDIDO IN DATE,
+        P_ITEMID IN VARCHAR2,
+        P_CATIDADORDEN IN NUMBER,
+        P_ENVIARID IN VARCHAR2,
+        P_TIPOPROCESAMIENTO IN VARCHAR2,
+        P_VERSIONPROCESAMIENTO IN VARCHAR2,
+        P_VENDIDOID IN VARCHAR2,
+        P_MENSAJE OUT VARCHAR2
+    );
+ --
+ -- Procesar confirmacion del pedido
+    PROCEDURE SP_CONFIRMA_ORDEN_VENTA(
+        P_DOCUMENTOID IN VARCHAR2,
+        P_DOCUMENTONUMERO IN VARCHAR2,
+        P_DOCUMENTOTIPO IN VARCHAR2,
+        P_MENSAJE OUT VARCHAR2
+    );
+    --
+    -- Proceso para inizializar el encabezado del xml
+    PROCEDURE SP_XMLINICIAR(
+        P_BSSV IN VARCHAR2,
+        P_ENCABEZADO OUT VARCHAR2,
+        P_MENSAJE OUT VARCHAR2
+    ) ;
+ --
+ -- Funcion para remplazo multimple de variables
+    FUNCTION FN_REMPLAZO_MULTIPLE(
+        P_CADENA IN clob,
+        P_VARIABLES IN ARREGLO_TEXTO,
+        P_VALORES IN ARREGLO_TEXTO
+    ) RETURN clob;
+END PK_JDE_PEDIDOS_WS;

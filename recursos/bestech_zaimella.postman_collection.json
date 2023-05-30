@@ -1,0 +1,124 @@
+{
+	"info": {
+		"_postman_id": "29676ece-81a6-42b7-a903-7c0592b8ab34",
+		"name": "bestech_zaimella",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2090670"
+	},
+	"item": [
+		{
+			"name": "OrdenCompra",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"modo\": \"H\",\n    \"compania\": \"2\",\n    \"tipoDocumentoCompra\": \"3\",\n    \"numeroOrdenCompra\": \"4\",\n    \"fecha\": \"2023-04-06 07:11:11\",\n    \"codigoProveedor\": \"3\",\n    \"nombreProveedor\": \"4\",\n    \"moneda\": \"4\",\n    \"bodegaRecepcion\": \"1\",\n    \"centroCosto\": \"1\",\n    \"motivo\": \"67\",\n    \"linea\": \"88\",\n    \"indiceItem\": 8,\n    \"unidadMedida\": \"8\",\n    \"categoria\": \"0001\",\n    \"costoUnidad\": 0,\n    \"usuario\": \"jdeuser\",\n    \"cantidadRecibida\": 12345678.12345\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://pruebas.zaimella.com:8081/bestech/v1/ordenes-compra/",
+					"protocol": "http",
+					"host": [
+						"pruebas",
+						"zaimella",
+						"com"
+					],
+					"port": "8081",
+					"path": [
+						"bestech",
+						"v1",
+						"ordenes-compra",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CrearActualizarArticulo",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"usuario\": \"ovelez\",\n    \"modo\": \"R\",\n    \"codigoItem\": \"SI001002\",\n    \"nombreItem\": \"nombre\",\n    \"descripcionItem\": \"descripcion\",\n    \"unidadMedida\": \"FR\",\n    \"clasificacion\": \"R20\",\n    \"clasificacion2\": \"R03002\",\n    \"almacen\": \"REPUESTOS PRINCIPAL\",\n    \"costo\": 0\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://pruebas.zaimella.com:8081/bestech/v1/articulos/",
+					"protocol": "http",
+					"host": [
+						"pruebas",
+						"zaimella",
+						"com"
+					],
+					"port": "8081",
+					"path": [
+						"bestech",
+						"v1",
+						"articulos",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListarArticulosByCodigoItem",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://pruebas.zaimella.com:8081/bestech/v1/articulos/codigoItem=SI001001",
+					"protocol": "http",
+					"host": [
+						"pruebas",
+						"zaimella",
+						"com"
+					],
+					"port": "8081",
+					"path": [
+						"bestech",
+						"v1",
+						"articulos",
+						"codigoItem=SI001001"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListarArticulosById",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://pruebas.zaimella.com:8081/bestech/v1/articulos/65",
+					"protocol": "http",
+					"host": [
+						"pruebas",
+						"zaimella",
+						"com"
+					],
+					"port": "8081",
+					"path": [
+						"bestech",
+						"v1",
+						"articulos",
+						"65"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
