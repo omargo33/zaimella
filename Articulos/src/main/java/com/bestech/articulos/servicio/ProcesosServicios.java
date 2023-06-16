@@ -106,6 +106,39 @@ public class ProcesosServicios {
     }
 
     /**
+     * Ejecuta el storage procedure para ejecutar el proceso creacion de alamacen.
+     * 
+     * @param id
+     * @return
+     * @throws SQLException
+     */
+    public String procesarAlmacen(long id){
+        entityManager.setFlushMode(FlushModeType.COMMIT);
+
+        StoredProcedureQuery storedProcedureQuery = this.entityManager
+                .createStoredProcedureQuery("DATA.PK_BT01_ARTICULOS_JDE.sp_procesaralmacen");
+        storedProcedureQuery.setFlushMode(FlushModeType.COMMIT);
+        storedProcedureQuery.registerStoredProcedureParameter("p_id", Long.class, ParameterMode.IN);
+        storedProcedureQuery.registerStoredProcedureParameter("p_mensaje", String.class, ParameterMode.OUT);
+        storedProcedureQuery.setParameter("p_id", id);
+
+        try {
+            storedProcedureQuery.execute();
+        } catch (javax.persistence.PersistenceException e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            return escogerError(encontrarSalidaSqlException(encontrarSalidaSqlGenericException(e)).getMessage());
+        }
+
+        String error = String.valueOf(storedProcedureQuery.getOutputParameterValue("p_mensaje"));
+        if (error == null || error.isEmpty() || error.equals("null")) {
+            TransactionAspectSupport.currentTransactionStatus().flush();
+            return Constanstes.PROCESO_OK;
+        }
+
+        return Constanstes.PROCESO_ERROR;
+    }
+
+    /**
      * Metodo para encontrar la salida de la excepcion sql
      * 
      * @param t

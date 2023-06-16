@@ -18,6 +18,8 @@ import com.bestech.articulos.jpa.model.RecepcionOrdenCompra;
 import com.bestech.articulos.servicio.ProcesosServicios;
 import com.bestech.articulos.servicio.RecepcionOrdenCompraServicio;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
 /**
  * Objeto para dar soporte a servicio REST de Ordenes de Compra.
  * 
@@ -35,6 +37,7 @@ public class RecepcionOrdenCompraControlador extends ComonControlador {
     @Autowired
     private ProcesosServicios procesosServicios;
 
+    @Hidden
     @GetMapping(value = "/")
     public List<RecepcionOrdenCompra> getRecepcionOrdenCompra() {
         return recepcionOrdenCompraServicio.findAll();

@@ -9,5 +9,4 @@ public class Constanstes {
 
     public static final String PROCESO_ERROR = "error";
     public static final String PROCESO_OK = "ok";
-
 }
