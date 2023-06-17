@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE "DATA".PK_BT01_ARTICULOS_JDE AS
+create or replace PACKAGE PK_BT01_ARTICULOS_JDE AS
  --
  -- autor:  Bestch
  -- fecha:  2023-04-17
@@ -46,7 +46,7 @@ CREATE OR REPLACE PACKAGE "DATA".PK_BT01_ARTICULOS_JDE AS
         P_MENSAJE OUT VARCHAR2
     );
  --
- -- procesar orden de compra desde la lectura de la tabla T_BT01_RECEPCION_ORDEN_COMPRA desde el ID
+ -- procesar orden el ingreso de articulo de la tabla T_BT01_ARTICULO desde el ID
     PROCEDURE SP_PROCESARARTICULO(
         P_ID IN NUMBER,
         P_MENSAJE OUT VARCHAR2
@@ -62,7 +62,8 @@ CREATE OR REPLACE PACKAGE "DATA".PK_BT01_ARTICULOS_JDE AS
         P_CLASIFICACION2 IN VARCHAR2,
         P_ALMACEN IN VARCHAR2,
         P_COSTO IN NUMBER,
-        P_MENSAJE OUT VARCHAR2
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_REPUESTO OUT NUMBER
     );
  --
  -- Procesar los articulos para repuestos
@@ -75,8 +76,32 @@ CREATE OR REPLACE PACKAGE "DATA".PK_BT01_ARTICULOS_JDE AS
         P_CLASIFICACION2 IN VARCHAR2,
         P_ALMACEN IN VARCHAR2,
         P_COSTO IN NUMBER,
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_HERRAMIENTA OUT NUMBER
+    );
+ --
+ -- procesar orden el ingreso de almacen del articulo de la tabla T_BT01_ARTICULO desde el ID
+    PROCEDURE SP_PROCESARALMACEN(
+        P_ID IN NUMBER,
         P_MENSAJE OUT VARCHAR2
     );
  --
+ -- Procesar la creacion de almacenes para herramientas
+PROCEDURE SP_PROCESA_ALMACEN_HER(
+        P_CODIGOITEM IN VARCHAR2,
+        P_ALMACEN IN VARCHAR2,
+        P_COSTO IN NUMBER,
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_HERRAMIENTA OUT NUMBER
+    );
  --
+ -- Procesar la creacion de almacenes para repuestos
+    PROCEDURE SP_PROCESA_ALMACEN_REP(
+        P_CODIGOITEM IN VARCHAR2,
+        P_ALMACEN IN VARCHAR2,
+        P_COSTO IN NUMBER,
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_REPUESTO OUT NUMBER
+    );
 END PK_BT01_ARTICULOS_JDE;
+/

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
+create or replace PACKAGE BODY PK_BT01_ARTICULOS_JDE AS
  --
  -- autor: Bestch
  -- fecha: 2023-04-17
@@ -93,7 +93,7 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
         BEGIN
             <<INSERTAR_MOVIMIENTO>>
  --
- -- insertar movimiento de repuesto
+ -- Insertar movimiento de repuesto
             IF V_MODO = 'R' THEN
                 SP_INSERTAR_REPUESTO( V_BODEGARECEPCION, V_CENTROCOSTO, V_MONEDA, V_CATEGORIA, V_USUARIO, V_NUMEROORDENCOMPRA, V_FECHA, V_MOTIVO, V_CODIGOPROVEEDOR, V_NOMBREPROVEEDOR, V_CANTIDADRECIBIDA, V_COSTOUNIDAD, P_MENSAJE => P_MENSAJE );
                 IF (P_MENSAJE IS NOT NULL) THEN
@@ -101,7 +101,7 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
                 END IF;
             ELSE
  --
- -- insertar movimiento de herramienta
+ -- Insertar movimiento de herramienta
                 IF V_MODO = 'H' THEN
                     SP_INSERTAR_HERRAMIENTA( V_BODEGARECEPCION, V_CENTROCOSTO, V_MONEDA, V_CATEGORIA, V_USUARIO, V_NUMEROORDENCOMPRA, V_FECHA, V_MOTIVO, V_CODIGOPROVEEDOR, V_NOMBREPROVEEDOR, V_CANTIDADRECIBIDA, V_COSTOUNIDAD, P_MENSAJE => P_MENSAJE );
                     IF (P_MENSAJE IS NOT NULL) THEN
@@ -646,15 +646,16 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
         P_MENSAJE OUT VARCHAR2
     ) AS
  -- crear variables para la consulta sql SELECT ID, USUARIO, USUARIOFECHA, VALORTEXTO, VALORNUMERO, MODO, CODIGOITEM, NOMBREITEM, DESCRIPCIONITEM, UNIDADMEDIDA, CLASIFICACION, CLASIFICACION2, ALMACEN, COSTO FROM "DATA".T_BT01_ARTICULO;
-        V_MODO            VARCHAR2(8);
-        V_CODIGOITEM      VARCHAR2(32);
-        V_NOMBREITEM      VARCHAR2(256);
-        V_DESCRIPCIONITEM VARCHAR2(32);
-        V_UNIDADMEDIDA    VARCHAR2(8);
-        V_CLASIFICACION   VARCHAR2(8);
-        V_CLASIFICACION2  VARCHAR2(8);
-        V_ALMACEN         VARCHAR2(32);
-        V_COSTO           NUMBER;
+        V_MODO                    VARCHAR2(8);
+        V_CODIGOITEM              VARCHAR2(32);
+        V_NOMBREITEM              VARCHAR2(256);
+        V_DESCRIPCIONITEM         VARCHAR2(32);
+        V_UNIDADMEDIDA            VARCHAR2(8);
+        V_CLASIFICACION           VARCHAR2(8);
+        V_CLASIFICACION2          VARCHAR2(8);
+        V_ALMACEN                 VARCHAR2(32);
+        V_COSTO                   NUMBER;
+        V_ID_HERRAMIENTA_REPUESTO NUMBER;
     BEGIN
         BEGIN
             <<BUSCAR_INFO_WS>>
@@ -694,8 +695,7 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
  --
  -- procesa repuesto
             IF V_MODO = 'R' THEN
-                SP_PROCESA_ARTICULO_REP( V_CODIGOITEM, V_NOMBREITEM, V_DESCRIPCIONITEM, V_UNIDADMEDIDA, V_CLASIFICACION, V_CLASIFICACION2, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE );
-                NULL;
+                SP_PROCESA_ARTICULO_REP( V_CODIGOITEM, V_NOMBREITEM, V_DESCRIPCIONITEM, V_UNIDADMEDIDA, V_CLASIFICACION, V_CLASIFICACION2, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE, P_ID_REPUESTO => V_ID_HERRAMIENTA_REPUESTO );
                 IF (P_MENSAJE IS NOT NULL) THEN
                     RETURN;
                 END IF;
@@ -703,8 +703,7 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
  --
  -- procesa herramienta
                 IF V_MODO = 'H' THEN
-                    SP_PROCESA_ARTICULO_HER( V_CODIGOITEM, V_NOMBREITEM, V_DESCRIPCIONITEM, V_UNIDADMEDIDA, V_CLASIFICACION, V_CLASIFICACION2, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE );
-                    NULL;
+                    SP_PROCESA_ARTICULO_HER( V_CODIGOITEM, V_NOMBREITEM, V_DESCRIPCIONITEM, V_UNIDADMEDIDA, V_CLASIFICACION, V_CLASIFICACION2, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE, P_ID_HERRAMIENTA => V_ID_HERRAMIENTA_REPUESTO );
                     IF (P_MENSAJE IS NOT NULL) THEN
                         RETURN;
                     END IF;
@@ -716,7 +715,101 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
                 END IF;
             END IF;
         END PROCESA_ARTICULOS;
+ --
+ -- Actualiza el ID de la herramienta o repuesto
+        BEGIN
+            <<ACTUALIZAR_INFO_WS>>
+            UPDATE DATA.T_BT01_ARTICULO
+            SET
+                VALORNUMERO = V_ID_HERRAMIENTA_REPUESTO
+            WHERE
+                ID = P_ID;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo actualizar el articulo con el ID: '
+                    || P_ID;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END ACTUALIZAR_INFO_WS;
     END SP_PROCESARARTICULO; --
+ -- procesar alamacen de los articulos T_BT01_ARTICULO desde el ID
+    PROCEDURE SP_PROCESARALMACEN(
+        P_ID IN NUMBER,
+        P_MENSAJE OUT VARCHAR2
+    ) AS
+ -- secuencia para el ID de los almacenes
+        V_ID_HERRAMIENTA_REPUESTO NUMBER;
+ -- variables
+        V_MODO                    VARCHAR2(8);
+        V_CODIGOITEM              VARCHAR2(32);
+        V_ALMACEN                 VARCHAR2(32);
+        V_COSTO                   NUMBER;
+    BEGIN
+        BEGIN
+            <<BUSCAR_INFO_WS>>
+            SELECT
+                MODO,
+                CODIGOITEM,
+                ALMACEN,
+                COSTO INTO V_MODO,
+                V_CODIGOITEM,
+                V_ALMACEN,
+                V_COSTO
+            FROM
+                DATA.T_BT01_ARTICULO
+            WHERE
+                ID = P_ID;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo encontrar el articulo con el ID: '
+                    || P_ID;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END BUSCAR_INFO_WS;
+ --
+ -- Procesa articulos.
+        BEGIN
+            <<PROCESA_ARTICULOS>>
+ --
+ -- procesa repuesto
+            IF V_MODO = 'R' THEN
+                SP_PROCESA_ALMACEN_REP( V_CODIGOITEM, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE, P_ID_REPUESTO => V_ID_HERRAMIENTA_REPUESTO );
+                IF (P_MENSAJE IS NOT NULL) THEN
+                    RETURN;
+                END IF;
+            ELSE
+ --
+ -- procesa herramienta
+                IF V_MODO = 'H' THEN
+                    SP_PROCESA_ALMACEN_HER( V_CODIGOITEM, V_ALMACEN, V_COSTO, P_MENSAJE => P_MENSAJE, P_ID_HERRAMIENTA => V_ID_HERRAMIENTA_REPUESTO );
+                    IF (P_MENSAJE IS NOT NULL) THEN
+                        RETURN;
+                    END IF;
+                ELSE
+                    P_MENSAJE := 'No se pudo encontrar el modo: '
+                        || V_MODO;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+                END IF;
+            END IF;
+        END PROCESA_ARTICULOS;
+ --
+ -- Actualiza el ID de la herramienta o repuesto
+        BEGIN
+            <<ACTUALIZAR_INFO_WS>>
+            UPDATE DATA.T_BT01_ARTICULO
+            SET
+                VALORNUMERO = V_ID_HERRAMIENTA_REPUESTO
+            WHERE
+                ID = P_ID;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo actualizar el articulo con el ID: '
+                    || P_ID;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END ACTUALIZAR_INFO_WS;
+    END SP_PROCESARALMACEN; --
  -- Procesar los articulos para repuestos
     PROCEDURE SP_PROCESA_ARTICULO_REP(
         P_CODIGOITEM IN VARCHAR2,
@@ -727,7 +820,8 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
         P_CLASIFICACION2 IN VARCHAR2,
         P_ALMACEN IN VARCHAR2,
         P_COSTO IN NUMBER,
-        P_MENSAJE OUT VARCHAR2
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_REPUESTO OUT NUMBER
     )AS
  -- Secuencias
         V_ID_CAT_REPUESTOS           NUMBER;
@@ -907,127 +1001,128 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
                     RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
                     RETURN;
             END INSERTAR_REPUESTO;
-        END IF;
  --
  -- Insertar niveles inversion repuestos
-        BEGIN
-            <<INSERTAR_NIVEL_INVERSION>>
-            INSERT INTO MPZML_REP.NIVELES_INV_RPTOS_HERR (
-                ID_CAT_ALMACENES,
-                ID_CAT_RPTOS_HERR,
-                TIPO_CATALOGO,
-                MIN_NIVELES_INV_RPTOS_HERR,
-                OPT_NIVELES_INV_RPTOS_HERR,
-                MAX_NIVELES_INV_RPTOS_HERR,
-                ROT_NIVELES_INV_RPTOS_HERR,
-                PEDIDO_NIVELES_INV_RPTOS_HERR,
-                MIN_MANUAL_AUTO,
-                MAX_MANUAL_AUTO,
-                OPT_MANUAL_AUTO,
-                ROT_MANUAL_AUTO,
-                MIN_DT_ACTUALIZADO,
-                MAX_DT_ACTUALIZADO,
-                OPT_DT_ACTUALIZADO,
-                ROT_DT_ACTUALIZADO,
-                MESES_UTILIZADOS_CALC,
-                DIAS_PROCURAMIENTO_RPTOS,
-                PROC_MANUAL_AUTO,
-                PROC_DT_ACTUALIZADO,
-                PROC_MESES_UTILIZADOS_CALC,
-                METODO_CALC_COBERT
-            ) VALUES(
-                V_ID_CAT_ALMACENES,
-                V_ID_CAT_REPUESTOS,
-                'R',
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                1,
-                1,
-                1,
-                SYSDATE(),
-                SYSDATE(),
-                SYSDATE(),
-                SYSDATE(),
-                0,
-                0,
-                1,
-                SYSDATE(),
-                0,
-                0
-            );
-        EXCEPTION
-            WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo insertar el nivel de inversion: '
-                    || P_CODIGOITEM;
-                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
-                RETURN;
-        END INSERTAR_NIVEL_INVERSION;
+            BEGIN
+                <<INSERTAR_NIVEL_INVERSION>>
+                INSERT INTO MPZML_REP.NIVELES_INV_RPTOS_HERR (
+                    ID_CAT_ALMACENES,
+                    ID_CAT_RPTOS_HERR,
+                    TIPO_CATALOGO,
+                    MIN_NIVELES_INV_RPTOS_HERR,
+                    OPT_NIVELES_INV_RPTOS_HERR,
+                    MAX_NIVELES_INV_RPTOS_HERR,
+                    ROT_NIVELES_INV_RPTOS_HERR,
+                    PEDIDO_NIVELES_INV_RPTOS_HERR,
+                    MIN_MANUAL_AUTO,
+                    MAX_MANUAL_AUTO,
+                    OPT_MANUAL_AUTO,
+                    ROT_MANUAL_AUTO,
+                    MIN_DT_ACTUALIZADO,
+                    MAX_DT_ACTUALIZADO,
+                    OPT_DT_ACTUALIZADO,
+                    ROT_DT_ACTUALIZADO,
+                    MESES_UTILIZADOS_CALC,
+                    DIAS_PROCURAMIENTO_RPTOS,
+                    PROC_MANUAL_AUTO,
+                    PROC_DT_ACTUALIZADO,
+                    PROC_MESES_UTILIZADOS_CALC,
+                    METODO_CALC_COBERT
+                ) VALUES(
+                    V_ID_CAT_ALMACENES,
+                    V_ID_CAT_REPUESTOS,
+                    'R',
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1,
+                    SYSDATE(),
+                    SYSDATE(),
+                    SYSDATE(),
+                    SYSDATE(),
+                    0,
+                    0,
+                    1,
+                    SYSDATE(),
+                    0,
+                    0
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el nivel de inversion: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_NIVEL_INVERSION;
  --
  -- Secuencia del kardex de repuestos
-        BEGIN
-            <<MAXIMO_KARDEX>>
-            SELECT
-                NVL(MAX(ID_KARDEX_RPTOS_HERR),
-                0)+1 INTO V_ID_KARDEX_RPTOS_HERR
-            FROM
-                MPZML_REP.KARDEX_RPTOS_HERR;
-        EXCEPTION
-            WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
-                    || P_CODIGOITEM;
-                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
-                RETURN;
-        END MAXIMO_KARDEX;
+            BEGIN
+                <<MAXIMO_KARDEX>>
+                SELECT
+                    NVL(MAX(ID_KARDEX_RPTOS_HERR),
+                    0)+1 INTO V_ID_KARDEX_RPTOS_HERR
+                FROM
+                    MPZML_REP.KARDEX_RPTOS_HERR;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END MAXIMO_KARDEX;
  --
  -- Insertar Kardex repuestos herramientas
-        BEGIN
-            <<INSERTAR_KARDEX>>
-            INSERT INTO MPZML_REP.KARDEX_RPTOS_HERR (
-                ID_KARDEX_RPTOS_HERR,
-                ID_CAT_RPTOS_HERR,
-                ID_CAT_ALMACENES,
-                EXISTENCIA_INICIAL,
-                FECHA_INICIAL,
-                CANTIDAD_ENTRADA,
-                COSTOT_ENTRADA,
-                CANTIDAD_SALIDA,
-                COSTOT_SAL_PROM,
-                COSTOT_SAL_PEPS,
-                COSTOT_SAL_UEPS,
-                EXISTENCIA_ACTUAL,
-                FECHA_FINAL,
-                REPUESTO_INICIALIZADO,
-                DESC_LOCALIZACION,
-                TIPO_CATALOGO
-            ) VALUES(
-                V_ID_KARDEX_RPTOS_HERR,
-                V_ID_CAT_REPUESTOS,
-                V_ID_CAT_ALMACENES,
-                0,
-                SYSDATE(),
-                0,
-                P_COSTO,
-                0,
-                0,
-                0,
-                0,
-                0,
-                NULL,
-                1,
-                NULL,
-                'R'
-            );
-        EXCEPTION
-            WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo insertar el kardex: '
-                    || P_CODIGOITEM;
-                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
-                RETURN;
-        END INSERTAR_KARDEX;
+            BEGIN
+                <<INSERTAR_KARDEX>>
+                INSERT INTO MPZML_REP.KARDEX_RPTOS_HERR (
+                    ID_KARDEX_RPTOS_HERR,
+                    ID_CAT_RPTOS_HERR,
+                    ID_CAT_ALMACENES,
+                    EXISTENCIA_INICIAL,
+                    FECHA_INICIAL,
+                    CANTIDAD_ENTRADA,
+                    COSTOT_ENTRADA,
+                    CANTIDAD_SALIDA,
+                    COSTOT_SAL_PROM,
+                    COSTOT_SAL_PEPS,
+                    COSTOT_SAL_UEPS,
+                    EXISTENCIA_ACTUAL,
+                    FECHA_FINAL,
+                    REPUESTO_INICIALIZADO,
+                    DESC_LOCALIZACION,
+                    TIPO_CATALOGO
+                ) VALUES(
+                    V_ID_KARDEX_RPTOS_HERR,
+                    V_ID_CAT_REPUESTOS,
+                    V_ID_CAT_ALMACENES,
+                    0,
+                    SYSDATE(),
+                    0,
+                    P_COSTO,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL,
+                    1,
+                    NULL,
+                    'R'
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_KARDEX;
+        END IF;
+        P_ID_REPUESTO := V_ID_CAT_REPUESTOS;
     END SP_PROCESA_ARTICULO_REP; --
  --
  -- Procesar los articulos para Herramientas
@@ -1040,7 +1135,8 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
         P_CLASIFICACION2 IN VARCHAR2,
         P_ALMACEN IN VARCHAR2,
         P_COSTO IN NUMBER,
-        P_MENSAJE OUT VARCHAR2
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_HERRAMIENTA OUT NUMBER
     )AS
  --Secuencias
         V_ID_CAT_HERRAMIENTAS         NUMBER;
@@ -1215,126 +1311,402 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_BT01_ARTICULOS_JDE AS
                     RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
                     RETURN;
             END INSERTAR_HERRAMIENTA;
-        END IF;
  --
  -- Insertar niveles de inversion herramientas
-        BEGIN
-            <<INSERTAR_NIVEL_INVERSION>>
-            INSERT INTO MPZML_HER.NIVELES_INV_RPTOS_HERR (
-                ID_CAT_ALMACENES,
-                ID_CAT_RPTOS_HERR,
-                TIPO_CATALOGO,
-                MIN_NIVELES_INV_RPTOS_HERR,
-                OPT_NIVELES_INV_RPTOS_HERR,
-                MAX_NIVELES_INV_RPTOS_HERR,
-                ROT_NIVELES_INV_RPTOS_HERR,
-                PEDIDO_NIVELES_INV_RPTOS_HERR,
-                MIN_MANUAL_AUTO,
-                MAX_MANUAL_AUTO,
-                OPT_MANUAL_AUTO,
-                ROT_MANUAL_AUTO,
-                MIN_DT_ACTUALIZADO,
-                MAX_DT_ACTUALIZADO,
-                OPT_DT_ACTUALIZADO,
-                ROT_DT_ACTUALIZADO,
-                MESES_UTILIZADOS_CALC,
-                DIAS_PROCURAMIENTO_RPTOS,
-                PROC_MANUAL_AUTO,
-                PROC_DT_ACTUALIZADO,
-                PROC_MESES_UTILIZADOS_CALC,
-                METODO_CALC_COBERT
-            ) VALUES(
-                V_ID_CAT_ALMACENES,
-                V_ID_CAT_HERRAMIENTAS,
-                'R',
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                1,
-                1,
-                1,
-                SYSDATE(),
-                SYSDATE(),
-                SYSDATE(),
-                SYSDATE(),
-                0,
-                0,
-                1,
-                SYSDATE(),
-                0,
-                0
-            );
-        EXCEPTION
-            WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo insertar el nivel de inversion: '
-                    || P_CODIGOITEM;
-                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
-                RETURN;
-        END INSERTAR_NIVEL_INVERSION;
+            BEGIN
+                <<INSERTAR_NIVEL_INVERSION>>
+                INSERT INTO MPZML_HER.NIVELES_INV_RPTOS_HERR (
+                    ID_CAT_ALMACENES,
+                    ID_CAT_RPTOS_HERR,
+                    TIPO_CATALOGO,
+                    MIN_NIVELES_INV_RPTOS_HERR,
+                    OPT_NIVELES_INV_RPTOS_HERR,
+                    MAX_NIVELES_INV_RPTOS_HERR,
+                    ROT_NIVELES_INV_RPTOS_HERR,
+                    PEDIDO_NIVELES_INV_RPTOS_HERR,
+                    MIN_MANUAL_AUTO,
+                    MAX_MANUAL_AUTO,
+                    OPT_MANUAL_AUTO,
+                    ROT_MANUAL_AUTO,
+                    MIN_DT_ACTUALIZADO,
+                    MAX_DT_ACTUALIZADO,
+                    OPT_DT_ACTUALIZADO,
+                    ROT_DT_ACTUALIZADO,
+                    MESES_UTILIZADOS_CALC,
+                    DIAS_PROCURAMIENTO_RPTOS,
+                    PROC_MANUAL_AUTO,
+                    PROC_DT_ACTUALIZADO,
+                    PROC_MESES_UTILIZADOS_CALC,
+                    METODO_CALC_COBERT
+                ) VALUES(
+                    V_ID_CAT_ALMACENES,
+                    V_ID_CAT_HERRAMIENTAS,
+                    'R',
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1,
+                    SYSDATE(),
+                    SYSDATE(),
+                    SYSDATE(),
+                    SYSDATE(),
+                    0,
+                    0,
+                    1,
+                    SYSDATE(),
+                    0,
+                    0
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el nivel de inversion: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_NIVEL_INVERSION;
  --
  --Secuencia de kardex de herramientas
-        BEGIN
-            <<MAXIMO_KARDEX>>
-            SELECT
-                NVL(MAX(ID_KARDEX_RPTOS_HERR),
-                0) + 1 INTO V_ID_KARDEX_RPTOS_HERR
-            FROM
-                MPZML_HER.KARDEX_RPTOS_HERR;
-        EXCEPTION
-            WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
-                    || P_CODIGOITEM;
-                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
-                RETURN;
-        END MAXIMO_KARDEX;
+            BEGIN
+                <<MAXIMO_KARDEX>>
+                SELECT
+                    NVL(MAX(ID_KARDEX_RPTOS_HERR),
+                    0) + 1 INTO V_ID_KARDEX_RPTOS_HERR
+                FROM
+                    MPZML_HER.KARDEX_RPTOS_HERR;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END MAXIMO_KARDEX;
  --
  -- Insertar Kardex repuestos herramientas
+            BEGIN
+                <<INSERTAR_KARDEX>>
+                INSERT INTO MPZML_HER.KARDEX_RPTOS_HERR (
+                    ID_KARDEX_RPTOS_HERR,
+                    ID_CAT_RPTOS_HERR,
+                    ID_CAT_ALMACENES,
+                    EXISTENCIA_INICIAL,
+                    FECHA_INICIAL,
+                    CANTIDAD_ENTRADA,
+                    COSTOT_ENTRADA,
+                    CANTIDAD_SALIDA,
+                    COSTOT_SAL_PROM,
+                    COSTOT_SAL_PEPS,
+                    COSTOT_SAL_UEPS,
+                    EXISTENCIA_ACTUAL,
+                    FECHA_FINAL,
+                    REPUESTO_INICIALIZADO,
+                    DESC_LOCALIZACION,
+                    TIPO_CATALOGO
+                ) VALUES(
+                    V_ID_KARDEX_RPTOS_HERR,
+                    V_ID_CAT_HERRAMIENTAS,
+                    V_ID_CAT_ALMACENES,
+                    0,
+                    SYSDATE(),
+                    0,
+                    P_COSTO,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL,
+                    1,
+                    NULL,
+                    'R'
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_KARDEX;
+        END IF;
+        P_ID_HERRAMIENTA := V_ID_CAT_HERRAMIENTAS;
+    END SP_PROCESA_ARTICULO_HER; --
+ -- -- Procesar la creacion de almacenes para herramientas
+    PROCEDURE SP_PROCESA_ALMACEN_HER(
+        P_CODIGOITEM IN VARCHAR2,
+        P_ALMACEN IN VARCHAR2,
+        P_COSTO IN NUMBER,
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_HERRAMIENTA OUT NUMBER
+    ) AS
+-- secuencia de herramienta
+        V_ID_KARDEX_RPTOS_HERR NUMBER;
+ -- indice de almacen
+        V_ID_CAT_herramientas     NUMBER;
+        V_ID_CAT_ALMACENES     NUMBER;
+    BEGIN
         BEGIN
-            <<INSERTAR_KARDEX>>
-            INSERT INTO MPZML_HER.KARDEX_RPTOS_HERR (
-                ID_KARDEX_RPTOS_HERR,
-                ID_CAT_RPTOS_HERR,
-                ID_CAT_ALMACENES,
-                EXISTENCIA_INICIAL,
-                FECHA_INICIAL,
-                CANTIDAD_ENTRADA,
-                COSTOT_ENTRADA,
-                CANTIDAD_SALIDA,
-                COSTOT_SAL_PROM,
-                COSTOT_SAL_PEPS,
-                COSTOT_SAL_UEPS,
-                EXISTENCIA_ACTUAL,
-                FECHA_FINAL,
-                REPUESTO_INICIALIZADO,
-                DESC_LOCALIZACION,
-                TIPO_CATALOGO
-            ) VALUES(
-                V_ID_KARDEX_RPTOS_HERR,
-                V_ID_CAT_HERRAMIENTAS,
-                V_ID_CAT_ALMACENES,
-                0,
-                SYSDATE(),
-                0,
-                P_COSTO,
-                0,
-                0,
-                0,
-                0,
-                0,
-                NULL,
-                1,
-                NULL,
-                'R'
-            );
+            <<BUSCAR_HERRAMIENTA>>
+            SELECT
+                ID_CAT_HERRAMIENTAS INTO V_ID_CAT_herramientas
+            FROM
+                MPZML_her.CAT_HERRAMIENTAS
+            WHERE
+                CVE_CAT_HERRAMIENTAS = P_CODIGOITEM;
         EXCEPTION
             WHEN OTHERS THEN
-                P_MENSAJE := 'No se pudo insertar el kardex: '
+                P_MENSAJE := 'No se pudo encontrar la herramienta para: '
                     || P_CODIGOITEM;
                 RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
                 RETURN;
-        END INSERTAR_KARDEX;
-    END SP_PROCESA_ARTICULO_HER;
+        END BUSCAR_HERRAMIENTA;
+ --
+ --
+ -- buscar almacenes
+        BEGIN
+            <<BUSCAR_ALMACEN>>
+            SELECT
+                ID_CAT_ALMACENES INTO V_ID_CAT_ALMACENES
+            FROM
+                MPZML_her.CAT_ALMACENES
+            WHERE
+                CVE_CAT_ALMACENES = P_ALMACEN;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo encontrar el almacen para: '
+                    || P_ALMACEN;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END BUSCAR_ALMACEN;
+ --
+ -- buscar si hay kardex
+        BEGIN
+            <<BUSCAR_KARDEX_HERRAMIENTA>>
+            SELECT
+                ID_KARDEX_RPTOS_HERR INTO V_ID_KARDEX_RPTOS_HERR
+            FROM
+                MPZML_her.KARDEX_RPTOS_HERR
+            WHERE
+                ID_CAT_RPTOS_HERR = V_ID_CAT_herramientas
+                AND ID_CAT_ALMACENES = V_ID_CAT_ALMACENES;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                V_ID_KARDEX_RPTOS_HERR:=NULL;
+        END BUSCAR_KARDEX_HERRAMIENTA;
+ --
+ -- insertar kardex de no haberlo
+        IF V_ID_KARDEX_RPTOS_HERR IS NULL THEN
+ --
+ -- buscar el maximo como indice
+            BEGIN
+                <<MAXIMO_KARDEX>>
+                SELECT
+                    NVL(MAX(ID_KARDEX_RPTOS_HERR),
+                    0) + 1 INTO V_ID_KARDEX_RPTOS_HERR
+                FROM
+                    MPZML_HER.KARDEX_RPTOS_HERR;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END MAXIMO_KARDEX;
+ --
+ -- insertar kardex
+            BEGIN
+                <<INSERTAR_KARDEX>>
+                INSERT INTO MPZML_her.KARDEX_RPTOS_HERR (
+                    ID_KARDEX_RPTOS_HERR,
+                    ID_CAT_RPTOS_HERR,
+                    ID_CAT_ALMACENES,
+                    EXISTENCIA_INICIAL,
+                    FECHA_INICIAL,
+                    CANTIDAD_ENTRADA,
+                    COSTOT_ENTRADA,
+                    CANTIDAD_SALIDA,
+                    COSTOT_SAL_PROM,
+                    COSTOT_SAL_PEPS,
+                    COSTOT_SAL_UEPS,
+                    EXISTENCIA_ACTUAL,
+                    FECHA_FINAL,
+                    REPUESTO_INICIALIZADO,
+                    DESC_LOCALIZACION,
+                    TIPO_CATALOGO
+                ) VALUES(
+                    V_ID_KARDEX_RPTOS_HERR,
+                    V_ID_CAT_HERRAMIENTAS,
+                    V_ID_CAT_ALMACENES,
+                    0,
+                    SYSDATE(),
+                    0,
+                    P_COSTO,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL,
+                    1,
+                    NULL,
+                    'R'
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_KARDEX;
+        ELSE
+ -- caso contrario enivar mensaje mostrando el error.
+            P_MENSAJE := 'El almacen: '
+                || P_ALMACEN
+                || ' ya existe para la herramienta: '
+                || P_CODIGOITEM;
+            RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+            RETURN;
+        END IF;
+    END SP_PROCESA_ALMACEN_HER; --
+ -- Procesar la creacion de almacenes para repuestos
+    PROCEDURE SP_PROCESA_ALMACEN_REP(
+        P_CODIGOITEM IN VARCHAR2,
+        P_ALMACEN IN VARCHAR2,
+        P_COSTO IN NUMBER,
+        P_MENSAJE OUT VARCHAR2,
+        P_ID_REPUESTO OUT NUMBER
+    )AS
+ -- secuencia de repuestos
+        V_ID_KARDEX_RPTOS_HERR NUMBER;
+ -- indice de almacen
+        V_ID_CAT_REPUESTOS     NUMBER;
+        V_ID_CAT_ALMACENES     NUMBER;
+    BEGIN
+        BEGIN
+            <<BUSCAR_REPUESTO>>
+            SELECT
+                ID_CAT_REPUESTOS INTO V_ID_CAT_REPUESTOS
+            FROM
+                MPZML_REP.CAT_REPUESTOS
+            WHERE
+                CVE_CAT_REPUESTOS = P_CODIGOITEM;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo encontrar la herramienta para: '
+                    || P_CODIGOITEM;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END BUSCAR_REPUESTO;
+ --
+ --
+ -- buscar almacenes
+        BEGIN
+            <<BUSCAR_ALMACEN>>
+            SELECT
+                ID_CAT_ALMACENES INTO V_ID_CAT_ALMACENES
+            FROM
+                MPZML_REP.CAT_ALMACENES
+            WHERE
+                CVE_CAT_ALMACENES = P_ALMACEN;
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'No se pudo encontrar el almacen para: '
+                    || P_ALMACEN;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+        END BUSCAR_ALMACEN;
+ --
+ -- buscar si hay kardex
+        BEGIN
+            <<BUSCAR_KARDEX_HERRAMIENTA>>
+            SELECT
+                ID_KARDEX_RPTOS_HERR INTO V_ID_KARDEX_RPTOS_HERR
+            FROM
+                MPZML_REP.KARDEX_RPTOS_HERR
+            WHERE
+                ID_CAT_RPTOS_HERR = V_ID_CAT_REPUESTOS
+                AND ID_CAT_ALMACENES = V_ID_CAT_ALMACENES;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                V_ID_KARDEX_RPTOS_HERR:=NULL;
+        END BUSCAR_KARDEX_HERRAMIENTA;
+ --
+ -- insertar kardex de no haberlo
+        IF V_ID_KARDEX_RPTOS_HERR IS NULL THEN
+ --
+ -- buscar el maximo como indice
+            BEGIN
+                <<MAXIMO_KARDEX>>
+                SELECT
+                    NVL(MAX(ID_KARDEX_RPTOS_HERR),
+                    0) + 1 INTO V_ID_KARDEX_RPTOS_HERR
+                FROM
+                    MPZML_rep.KARDEX_RPTOS_HERR;
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo obtener la secuencia del kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END MAXIMO_KARDEX;
+ --
+ -- insertar kardex
+            BEGIN
+                <<INSERTAR_KARDEX>>
+                INSERT INTO MPZML_REP.KARDEX_RPTOS_HERR (
+                    ID_KARDEX_RPTOS_HERR,
+                    ID_CAT_RPTOS_HERR,
+                    ID_CAT_ALMACENES,
+                    EXISTENCIA_INICIAL,
+                    FECHA_INICIAL,
+                    CANTIDAD_ENTRADA,
+                    COSTOT_ENTRADA,
+                    CANTIDAD_SALIDA,
+                    COSTOT_SAL_PROM,
+                    COSTOT_SAL_PEPS,
+                    COSTOT_SAL_UEPS,
+                    EXISTENCIA_ACTUAL,
+                    FECHA_FINAL,
+                    REPUESTO_INICIALIZADO,
+                    DESC_LOCALIZACION,
+                    TIPO_CATALOGO
+                ) VALUES(
+                    V_ID_KARDEX_RPTOS_HERR,
+                    V_ID_CAT_REPUESTOS,
+                    V_ID_CAT_ALMACENES,
+                    0,
+                    SYSDATE(),
+                    0,
+                    P_COSTO,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    NULL,
+                    1,
+                    NULL,
+                    'R'
+                );
+            EXCEPTION
+                WHEN OTHERS THEN
+                    P_MENSAJE := 'No se pudo insertar el kardex: '
+                        || P_CODIGOITEM;
+                    RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                    RETURN;
+            END INSERTAR_KARDEX;
+        ELSE
+ -- caso contrario enivar mensaje mostrando el error.
+            P_MENSAJE := 'El almacen: '
+                || P_ALMACEN
+                || ' ya existe para la herramienta: '
+                || P_CODIGOITEM;
+            RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+            RETURN;
+        END IF;
+    END SP_PROCESA_ALMACEN_REP;
 END PK_BT01_ARTICULOS_JDE;
+/
