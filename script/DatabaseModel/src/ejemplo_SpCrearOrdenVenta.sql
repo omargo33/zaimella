@@ -78,3 +78,32 @@ BEGIN
     dbms_output.put_line('p_destinatario ' || p_destinatario);
     dbms_output.put_line('mensaje ' || p_mensaje);
 END;
+
+
+DECLARE
+    p_documentoid       VARCHAR2(200);
+    p_documentonumero   VARCHAR2(200);
+    p_documentotipo     VARCHAR2(200);
+    p_item              VARCHAR2(200);
+    p_event_point       VARCHAR2(200);
+    p_mensaje           VARCHAR2(200);
+BEGIN
+    p_documentoid := NULL;
+    p_documentonumero := NULL;
+    p_documentotipo := NULL;
+    p_item := NULL;
+    p_event_point := NULL;
+    p_mensaje := NULL;
+    pk_jde_pedidos_ws.sp_confirma_orden_venta(
+        p_documentoid       => p_documentoid,
+        p_documentonumero   => p_documentonumero,
+        p_documentotipo     => p_documentotipo,
+        p_item              => p_item,
+        p_event_point       => p_event_point,
+        p_mensaje           => p_mensaje
+    );
+
+    dbms_output.put_line(' p_item ' || p_item);
+    dbms_output.put_line('p_event_point ' || p_event_point);
+    dbms_output.put_line('mensaje ' || p_mensaje);
+END;
