@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
+CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
  --
  -- autor:  Bestch
  -- fecha:  2023-05-28
@@ -6,23 +6,21 @@ CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
  -- Package header
  --
  -- Variables globales
-    --
-    -- xml header     
-    G_SEGURIDADES         CLOB := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:orac="http://oracle.e1.bssv.?BSSV/">
+ --
+ -- xml header
+    G_SEGURIDADES    CLOB := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:orac="?BSSV">
     <soapenv:Header>
-        <wsse:Security soapenv:mustUnderstand="1"
+        <wsse:Security soapenv:mustUnderstand="0"
             xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
             <wsse:UsernameToken wsu:Id="UsernameToken-8"
                 xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
                 <wsse:Username>?usuario</wsse:Username>
-                <wsse:Password
-                    Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">
-                    ?clave</wsse:Password>
+                <wsse:Password Type="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText">?clave</wsse:Password>
             </wsse:UsernameToken>
         </wsse:Security>
     </soapenv:Header>';
-    --
-    -- xml body crear orden
+ --
+ -- xml body crear orden
     G_BODY_CREAR     CLOB:='<soapenv:Body>
         <orac:processSalesOrder>
             <header>
@@ -47,8 +45,7 @@ CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
                         <useConfigurationRule></useConfigurationRule>
                     </processing>
                     <product>
-                        <configuration>
-                        </configuration>
+                        <configuration></configuration>
                         <description1></description1>
                         <description2></description2>
                         <item>
@@ -118,8 +115,8 @@ CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
         </orac:processSalesOrder>
     </soapenv:Body>
     </soapenv:Envelope>';
-    --
-    -- xml body confirmar orden
+ --
+ -- xml body confirmar orden
     G_BODY_CONFIRMAR CLOB:='<env:Body>
       <ns1:SalesShippingConfirmation>
          <companyKeyEDIDocumentKeyCo>?documentoId</companyKeyEDIDocumentKeyCo>
@@ -138,14 +135,24 @@ CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
     PROCEDURE SP_CREAR_ORDEN_VENTA(
         P_UNIDADNEGOCIO IN VARCHAR2,
         P_CODIGOMONEDA IN VARCHAR2,
-        P_FECHAORDEN IN DATE,
-        P_FECHAPEDIDO IN DATE,
+        P_FECHAORDEN IN VARCHAR2,
+        P_FECHAPEDIDO IN VARCHAR2,
         P_ITEMID IN VARCHAR2,
         P_CATIDADORDEN IN NUMBER,
         P_ENVIARID IN VARCHAR2,
         P_TIPOPROCESAMIENTO IN VARCHAR2,
         P_VERSIONPROCESAMIENTO IN VARCHAR2,
         P_VENDIDOID IN VARCHAR2,
+        P_FECHAORDENOUT OUT VARCHAR2,
+        P_ITEMCATALOGO OUT VARCHAR2,
+        P_ITEMPRODUCTO OUT VARCHAR2,
+        P_ENVIARTAXID OUT VARCHAR2,
+        P_DOCUMENTCOMPANY OUT VARCHAR2,
+        P_DOCUMENTNUMERO OUT VARCHAR2,
+        P_DOCUMENTTIPO OUT VARCHAR2,
+        P_ENVIARDIRECCION OUT VARCHAR2,
+        P_ENVIARCIUDAD OUT VARCHAR2,
+        P_DESTINATARIO OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
     );
  --
@@ -154,21 +161,23 @@ CREATE OR REPLACE PACKAGE "DATA".PK_JDE_PEDIDOS_WS AS
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
+        P_ITEM OUT VARCHAR2,
+        P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
     );
-    --
-    -- Proceso para inizializar el encabezado del xml
+ --
+ -- Proceso para inizializar el encabezado del xml
     PROCEDURE SP_XMLINICIAR(
         P_BSSV IN VARCHAR2,
         P_ENCABEZADO OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
-    ) ;
+    );
  --
  -- Funcion para remplazo multimple de variables
     FUNCTION FN_REMPLAZO_MULTIPLE(
-        P_CADENA IN clob,
+        P_CADENA IN CLOB,
         P_VARIABLES IN ARREGLO_TEXTO,
         P_VALORES IN ARREGLO_TEXTO
-    ) RETURN clob;
+    ) RETURN CLOB;
 END PK_JDE_PEDIDOS_WS;
 /

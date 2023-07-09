@@ -1,0 +1,23 @@
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<oracle-webservice-clients xmlns:ns0="http://java.sun.com/xml/ns/javaee">
+   <webservice-client>
+      <service-qname namespaceURI="http://oracle.e1.bssv.JP420000/" localpart="SalesOrderManagerService"/>
+      <port-info>
+         <wsdl-port namespaceURI="http://oracle.e1.bssv.JP420000/" localpart="SalesOrderManagerPort"/>
+         <runtime/>
+         <operations>
+            <operation name="processSalesPriceAdjustment"/>
+            <operation name="getItemPriceAndAvailability"/>
+            <operation name="getItemPriceAndAvailabilityV2"/>
+            <operation name="getCustomerItemPrice"/>
+            <operation name="getCustomerItemPriceV2"/>
+            <operation name="getSalesOrder"/>
+            <operation name="getSalesOrderV2"/>
+            <operation name="processSalesOrder"/>
+            <operation name="processSalesOrderV2"/>
+            <operation name="getItemListPrice"/>
+            <operation name="getSalesOrderPriceHistory"/>
+         </operations>
+      </port-info>
+   </webservice-client>
+</oracle-webservice-clients>

@@ -3,7 +3,7 @@
 --   <name>PK_JDE_PEDIDOS_WS_BODY</name>
 -- </package>
 
-CREATE OR REPLACE PACKAGE BODY "DATA".PK_JDE_PEDIDOS_WS AS
+CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  --
  -- autor:  Bestch
  -- fecha:  2023-05-28
@@ -13,14 +13,24 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_JDE_PEDIDOS_WS AS
     PROCEDURE SP_CREAR_ORDEN_VENTA(
         P_UNIDADNEGOCIO IN VARCHAR2,
         P_CODIGOMONEDA IN VARCHAR2,
-        P_FECHAORDEN IN DATE,
-        P_FECHAPEDIDO IN DATE,
+        P_FECHAORDEN IN VARCHAR2,
+        P_FECHAPEDIDO IN VARCHAR2,
         P_ITEMID IN VARCHAR2,
         P_CATIDADORDEN IN NUMBER,
         P_ENVIARID IN VARCHAR2,
         P_TIPOPROCESAMIENTO IN VARCHAR2,
         P_VERSIONPROCESAMIENTO IN VARCHAR2,
         P_VENDIDOID IN VARCHAR2,
+        P_FECHAORDENOUT OUT VARCHAR2,
+        P_ITEMCATALOGO OUT VARCHAR2,
+        P_ITEMPRODUCTO OUT VARCHAR2,
+        P_ENVIARTAXID OUT VARCHAR2,
+        P_DOCUMENTCOMPANY OUT VARCHAR2,
+        P_DOCUMENTNUMERO OUT VARCHAR2,
+        P_DOCUMENTTIPO OUT VARCHAR2,
+        P_ENVIARDIRECCION OUT VARCHAR2,
+        P_ENVIARCIUDAD OUT VARCHAR2,
+        P_DESTINATARIO OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
     ) AS
  -- variables
@@ -69,6 +79,8 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_JDE_PEDIDOS_WS AS
             V_XML_RESPUESTA:= APEX_WEB_SERVICE.MAKE_REQUEST( P_URL => V_URL, P_ENVELOPE => V_BODY, P_TRANSFER_TIMEOUT => V_TIME_OUT );
             PK_CORP_DEBUG.INFO('JDE', 'PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA', 'V_XML_RESPUESTA '
                 ||V_XML_RESPUESTA.GETCLOBVAL());
+            DBMS_OUTPUT.PUT_LINE('V_XML_RESPUESTA '
+                ||V_XML_RESPUESTA.GETCLOBVAL());
  --Verifica error del servicio
         EXCEPTION
             WHEN OTHERS THEN
@@ -88,26 +100,99 @@ CREATE OR REPLACE PACKAGE BODY "DATA".PK_JDE_PEDIDOS_WS AS
                 V_RESPUEST2
             FROM
                 DUAL;
+            IF V_RESPUEST1 IS NOT NULL THEN
+                P_MENSAJE := 'Error del servicio '
+                    || V_RESPUEST1
+                    ||' '
+                    || V_RESPUEST2;
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+                RETURN;
+            END IF;
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al procesar la respuesta del servicio '
                     || V_RESPUEST1
                     ||' '
                     || V_RESPUEST2;
-                DBMS_OUTPUT.PUT_LINE(P_MENSAJE);
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
         END VERIFICAR_ERROR;
  -- Toma los datos de la respuesta correcta
-
- /*
-Problema con el sitio que redirige a un servidor SSL que hay que verificar.
-https://oracle-base.com/articles/misc/utl_http-and-ssl
-*/
+        BEGIN
+            <<VERIFICAR_RESPUESTA_VALIDA>>
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/dates/orderDate/text()').GETSTRINGVAL() INTO P_FECHAORDENOUT
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/detail/product/item/itemCatalog/text()').GETSTRINGVAL() INTO P_ITEMCATALOGO
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/detail/product/item/itemProduct/text()').GETSTRINGVAL() INTO P_ITEMPRODUCTO
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/detail/shipTo/entityTaxId/text()').GETSTRINGVAL() INTO P_ENVIARTAXID
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/salesOrderKey/documentCompany/text()').GETSTRINGVAL() INTO P_DOCUMENTCOMPANY
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/salesOrderKey/documentNumber/text()').GETSTRINGVAL() INTO P_DOCUMENTNUMERO
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/salesOrderKey/documentTypeCode/text()').GETSTRINGVAL() INTO P_DOCUMENTTIPO
+            FROM
+                DUAL;
+            SELECT
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/addressLine1/text()').GETSTRINGVAL()) || ' ' || 
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/addressLine2/text()').GETSTRINGVAL()) || ' ' || 
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/addressLine3/text()').GETSTRINGVAL()) || ' ' || 
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/addressLine4/text()').GETSTRINGVAL()) INTO P_ENVIARDIRECCION
+            FROM
+                DUAL;
+            SELECT
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/city/text()').GETSTRINGVAL()) || ' ' || 
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/countryCode/text()').GETSTRINGVAL()) || ' ' || 
+                TRIM(EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/countyCode/text()').GETSTRINGVAL()) INTO P_ENVIARCIUDAD
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//header/shipTo/mailingName/text()').GETSTRINGVAL() INTO P_DESTINATARIO
+            FROM
+                DUAL;
+ 
+        EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'Error al leer una respuesta valida del servicio ';
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+        END VERIFICAR_RESPUESTA_VALIDA;
     END SP_CREAR_ORDEN_VENTA; --
  -- Procesar confirmacion del pedido
     PROCEDURE SP_CONFIRMA_ORDEN_VENTA(
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
+        P_ITEM OUT VARCHAR2,
+        P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
     )AS
  -- variables
@@ -156,6 +241,8 @@ https://oracle-base.com/articles/misc/utl_http-and-ssl
             V_XML_RESPUESTA:= APEX_WEB_SERVICE.MAKE_REQUEST( P_URL => V_URL, P_ENVELOPE => V_BODY, P_TRANSFER_TIMEOUT => V_TIME_OUT );
             PK_CORP_DEBUG.INFO('JDE', 'PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA', 'V_XML_RESPUESTA '
                 ||V_XML_RESPUESTA.GETCLOBVAL());
+            DBMS_OUTPUT.PUT_LINE('V_XML_RESPUESTA '
+                ||V_XML_RESPUESTA.GETCLOBVAL());
  --Verifica error del servicio
         EXCEPTION
             WHEN OTHERS THEN
@@ -184,11 +271,25 @@ https://oracle-base.com/articles/misc/utl_http-and-ssl
                 DBMS_OUTPUT.PUT_LINE(P_MENSAJE);
         END VERIFICAR_ERROR;
  -- Toma los datos de la respuesta correcta
+        BEGIN
+            <<VERIFICAR_RESPUESTA_VALIDA>>
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//dataItem/text()').GETSTRINGVAL() INTO P_ITEM
+            FROM
+                DUAL;
+            SELECT
+                EXTRACT(V_XML_RESPUESTA,
+                '//JDEnterpriseOneEventPoint01/text()').GETSTRINGVAL() INTO P_EVENT_POINT
+            FROM
+                DUAL;
 
- /*
-Problema con el sitio que redirige a un servidor SSL que hay que verificar.
-https://oracle-base.com/articles/misc/utl_http-and-ssl
-*/
+            EXCEPTION
+            WHEN OTHERS THEN
+                P_MENSAJE := 'Error al leer una respuesta valida del servicio ';
+                RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
+        END VERIFICAR_RESPUESTA_VALIDA;
+ 
     END SP_CONFIRMA_ORDEN_VENTA; --
  -- Proceso para inizializar el encabezado del xml
     PROCEDURE SP_XMLINICIAR(
