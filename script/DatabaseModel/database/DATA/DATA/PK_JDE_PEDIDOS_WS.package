@@ -8,7 +8,7 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
  -- Variables globales
  --
  -- xml header
-    G_SEGURIDADES    CLOB := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:orac="?BSSV">
+    G_SEGURIDADES        CLOB := '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:orac="?BSSV">
     <soapenv:Header>
         <wsse:Security soapenv:mustUnderstand="0"
             xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
@@ -21,7 +21,7 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
     </soapenv:Header>';
  --
  -- xml body crear orden
-    G_BODY_CREAR     CLOB:='<soapenv:Body>
+    G_BODY_CREAR         CLOB:='<soapenv:Body>
         <orac:processSalesOrder>
             <header>
                 <businessUnit>?unidadNegocio</businessUnit>
@@ -36,7 +36,38 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
                     <entityTaxId></entityTaxId>
                 </deliverTo>
                 <detail>
-                    <agreementId></agreementId>
+                    ?detalle
+                </detail>
+                <forwardedTo>
+                    <entityId></entityId>
+                    <entityLongId></entityLongId>
+                    <entityTaxId></entityTaxId>
+                </forwardedTo>
+                <holdOrderCode></holdOrderCode>
+                <invoicedTo>
+                    <entityId></entityId>
+                    <entityLongId></entityLongId>
+                    <entityTaxId></entityTaxId>
+                </invoicedTo>
+                <orderTakenBy></orderTakenBy>
+                <orderedBy></orderedBy>
+                <processing>
+                    <actionType>?tipoProcesamiento</actionType>
+                    <processingVersion>?versionProcesamiento</processingVersion>
+                </processing>
+                <rateExchange></rateExchange>
+                <soldTo>
+                    <customer>
+                        <entityId>?vendidoId</entityId>
+                    </customer>
+                </soldTo>
+            </header>
+        </orac:processSalesOrder>
+    </soapenv:Body>
+    </soapenv:Envelope>';
+ --
+ -- xml detalle de body gear
+    G_DETALLE_BODY_CREAR CLOB:='<agreementId></agreementId>
                     <agreementSupplement></agreementSupplement>
                     <businessUnit>?unidadNegocio</businessUnit>
                     <businessUnitDestination></businessUnitDestination>
@@ -86,38 +117,10 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
                     <timePromisedShip></timePromisedShip>
                     <timeRequested></timeRequested>
                     <timeScheduledPick></timeScheduledPick>
-                    <unitOfMeasureCodeTransaction></unitOfMeasureCodeTransaction>
-                </detail>
-                <forwardedTo>
-                    <entityId></entityId>
-                    <entityLongId></entityLongId>
-                    <entityTaxId></entityTaxId>
-                </forwardedTo>
-                <holdOrderCode></holdOrderCode>
-                <invoicedTo>
-                    <entityId></entityId>
-                    <entityLongId></entityLongId>
-                    <entityTaxId></entityTaxId>
-                </invoicedTo>
-                <orderTakenBy></orderTakenBy>
-                <orderedBy></orderedBy>
-                <processing>
-                    <actionType>?tipoProcesamiento</actionType>
-                    <processingVersion>?versionProcesamiento</processingVersion>
-                </processing>
-                <rateExchange></rateExchange>
-                <soldTo>
-                    <customer>
-                        <entityId>?vendidoId</entityId>
-                    </customer>
-                </soldTo>
-            </header>
-        </orac:processSalesOrder>
-    </soapenv:Body>
-    </soapenv:Envelope>';
+                    <unitOfMeasureCodeTransaction></unitOfMeasureCodeTransaction>';
  --
  -- xml body confirmar orden
-    G_BODY_CONFIRMAR CLOB:='<env:Body>
+    G_BODY_CONFIRMAR     CLOB:='<env:Body>
       <ns1:SalesShippingConfirmation>
          <companyKeyEDIDocumentKeyCo>?documentoId</companyKeyEDIDocumentKeyCo>
          <EDIDocumentNumber>?documentoNumero</EDIDocumentNumber>
@@ -131,18 +134,81 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
     TYPE ARREGLO_TEXTO IS
         TABLE OF VARCHAR2(256);
  --
+ -- Cursor de consulta de movimientos repuestos
+    CURSOR C_MOVIMIENTOS_REPUESTOS(P_ID NUMBER) IS
+        SELECT
+            CABECERA.ID_MOVIMIENTOS_INVENTARIO,
+            CABECERA.ID_SIS_TIPOS_MOVIMIENTO         AS TIPOMOVIMIENTO,
+            '00001'                                  COMPANIA,
+            CABECERA.FECHA_MOVIMIENTOS_INVENTARIO    AS FECHATRANSACCION,
+            TRIM(SUBSTR(VALECAB.CONCATENA_MO, 1, 5)) AS SOLDTO,
+            VALEDET.CC                               AS SHIPTO,
+            REPUESTO.CVE_CAT_REPUESTOS               AS CODIGOREPUESTO,
+            CANTIDAD_DETALLE_MOVTO_INV               AS CANTIDADORDENADA,
+            UNI.DESC_CAT_UNIDADES_RPTOS_HERR         AS UNIDAD,
+            VALECAB.CVE_CAT_ALMACENES                AS BODEGA,
+            MONEDA.ABREVIATURA_CAT_DIVISAS           AS MONEDA,
+            ROWNUM                                   AS NUMEROLINEA
+        FROM
+            MPZML_REP.MOVIMIENTOS_INVENTARIO  CABECERA
+            LEFT JOIN MPZML_REP.DETALLE_MOVTOS_INVENT DETALLE
+            ON CABECERA.ID_MOVIMIENTOS_INVENTARIO = DETALLE.ID_MOVIMIENTOS_INVENTARIO
+            LEFT JOIN MPZML_REP.CAT_REPUESTOS REPUESTO
+            ON DETALLE.ID_CAT_RPTOS_HERR = REPUESTO.ID_CAT_REPUESTOS
+            LEFT JOIN MPZML_REP.SALIDAS_VALES_MP SALIDASVALE
+            ON CABECERA.ID_MOVIMIENTOS_INVENTARIO = SALIDASVALE.ID_MOVIMIENTOS_INVENTARIO
+            LEFT JOIN MPZML_REP.VALE VALECAB
+            ON SALIDASVALE.ID_VALE = VALECAB.ID_VALE
+            LEFT JOIN MPZML_REP.VALE_DET VALEDET
+            ON VALECAB.ID_VALE = VALEDET.ID_VALE
+            AND DETALLE.ID_CAT_RPTOS_HERR = VALEDET.ID_CAT_REPUESTOS
+            LEFT JOIN MPZML_REP.CAT_UNIDADES_RPTOS_HERR UNI
+            ON REPUESTO.ID_CAT_UNIDADES_RPTOS_HERR = UNI.ID_CAT_UNIDADES_RPTOS_HERR
+            LEFT JOIN MPZML_REP.CAT_DIVISAS MONEDA
+            ON CABECERA.ID_CAT_DIVISAS = MONEDA.ID_CAT_DIVISAS
+        WHERE
+            CABECERA.ID_MOVIMIENTOS_INVENTARIO = P_ID
+            AND CABECERA.ID_SIS_TIPOS_MOVIMIENTO IN (3, 7);
+ --
+ -- Cursor de consulta de movimientos repuestos
+    CURSOR C_MOVIMIENTOS_HERRAMIENTAS(P_ID NUMBER) IS
+        SELECT
+            CABECERA.ID_SIS_TIPOS_MOVIMIENTO         AS TIPOMOVIMIENTO,
+            '00001'                                  COMPANIA,
+            CABECERA.FECHA_MOVIMIENTOS_INVENTARIO    AS FECHATRANSACCION,
+            TRIM(SUBSTR(VALECAB.CONCATENA_MO, 1, 5)) AS SOLDTO,
+            VALEDET.CC                               AS SHIPTO,
+            REPUESTO.CVE_CAT_REPUESTOS               AS CODIGOREPUESTO,
+            CANTIDAD_DETALLE_MOVTO_INV               AS CANTIDADORDENADA,
+            UNI.DESC_CAT_UNIDADES_RPTOS_HERR         AS UNIDAD,
+            VALECAB.CVE_CAT_ALMACENES                AS BODEGA,
+            MONEDA.ABREVIATURA_CAT_DIVISAS           AS MONEDA,
+            ROWNUM                                   AS NUMEROLINEA
+        FROM
+            MPZML_HER.MOVIMIENTOS_INVENTARIO  CABECERA
+            LEFT JOIN MPZML_HER.DETALLE_MOVTOS_INVENT DETALLE
+            ON CABECERA.ID_MOVIMIENTOS_INVENTARIO = DETALLE.ID_MOVIMIENTOS_INVENTARIO
+            LEFT JOIN MPZML_HER.CAT_REPUESTOS REPUESTO
+            ON DETALLE.ID_CAT_RPTOS_HERR = REPUESTO.ID_CAT_REPUESTOS
+            LEFT JOIN MPZML_HER.SALIDAS_VALES_MP SALIDASVALE
+            ON CABECERA.ID_MOVIMIENTOS_INVENTARIO = SALIDASVALE.ID_MOVIMIENTOS_INVENTARIO
+            LEFT JOIN MPZML_HER.VALE VALECAB
+            ON SALIDASVALE.ID_VALE = VALECAB.ID_VALE
+            LEFT JOIN MPZML_HER.VALE_DET VALEDET
+            ON VALECAB.ID_VALE = VALEDET.ID_VALE
+            AND DETALLE.ID_CAT_RPTOS_HERR = VALEDET.ID_CAT_REPUESTOS
+            LEFT JOIN MPZML_HER.CAT_UNIDADES_RPTOS_HERR UNI
+            ON REPUESTO.ID_CAT_UNIDADES_RPTOS_HERR = UNI.ID_CAT_UNIDADES_RPTOS_HERR
+            LEFT JOIN MPZML_HER.CAT_DIVISAS MONEDA
+            ON CABECERA.ID_CAT_DIVISAS = MONEDA.ID_CAT_DIVISAS
+        WHERE
+            CABECERA.ID_MOVIMIENTOS_INVENTARIO = P_ID
+            AND CABECERA.ID_SIS_TIPOS_MOVIMIENTO IN (3, 7);
+ --
  -- Procesar pedidos al servicio de jde.
     PROCEDURE SP_CREAR_ORDEN_VENTA(
-        P_UNIDADNEGOCIO IN VARCHAR2,
-        P_CODIGOMONEDA IN VARCHAR2,
-        P_FECHAORDEN IN VARCHAR2,
-        P_FECHAPEDIDO IN VARCHAR2,
-        P_ITEMID IN VARCHAR2,
-        P_CATIDADORDEN IN NUMBER,
-        P_ENVIARID IN VARCHAR2,
-        P_TIPOPROCESAMIENTO IN VARCHAR2,
-        P_VERSIONPROCESAMIENTO IN VARCHAR2,
-        P_VENDIDOID IN VARCHAR2,
+        P_ID IN NUMBER,
+        P_MODO IN VARCHAR2,
         P_FECHAORDENOUT OUT VARCHAR2,
         P_ITEMCATALOGO OUT VARCHAR2,
         P_ITEMPRODUCTO OUT VARCHAR2,
@@ -161,6 +227,7 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
+        P_VERSION IN VARCHAR2,
         P_ITEM OUT VARCHAR2,
         P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
@@ -180,4 +247,3 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
         P_VALORES IN ARREGLO_TEXTO
     ) RETURN CLOB;
 END PK_JDE_PEDIDOS_WS;
-/

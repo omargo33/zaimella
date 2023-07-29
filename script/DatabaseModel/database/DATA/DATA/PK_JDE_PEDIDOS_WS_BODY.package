@@ -1,8 +1,3 @@
--- <?xml version = '1.0' encoding = 'UTF-8'?>
--- <package xmlns="http://xmlns.oracle.com/jdeveloper/1211/offlinedb">
---   <name>PK_JDE_PEDIDOS_WS_BODY</name>
--- </package>
-
 CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  --
  -- autor:  Bestch
@@ -11,16 +6,8 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  -- Package header
  -- Procesar pedidos al servicio de jde.
     PROCEDURE SP_CREAR_ORDEN_VENTA(
-        P_UNIDADNEGOCIO IN VARCHAR2,
-        P_CODIGOMONEDA IN VARCHAR2,
-        P_FECHAORDEN IN VARCHAR2,
-        P_FECHAPEDIDO IN VARCHAR2,
-        P_ITEMID IN VARCHAR2,
-        P_CATIDADORDEN IN NUMBER,
-        P_ENVIARID IN VARCHAR2,
-        P_TIPOPROCESAMIENTO IN VARCHAR2,
-        P_VERSIONPROCESAMIENTO IN VARCHAR2,
-        P_VENDIDOID IN VARCHAR2,
+        P_ID IN NUMBER,
+        P_MODO IN VARCHAR2,
         P_FECHAORDENOUT OUT VARCHAR2,
         P_ITEMCATALOGO OUT VARCHAR2,
         P_ITEMPRODUCTO OUT VARCHAR2,
@@ -33,25 +20,82 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         P_DESTINATARIO OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
     ) AS
- -- variables
-        V_URL           VARCHAR2(512);
-        V_XML_PETICION  XMLTYPE;
-        V_XML_RESPUESTA XMLTYPE;
-        V_TIME_OUT      NUMBER DEFAULT 1500;
-        V_RESPUEST1     VARCHAR2(1000);
-        V_RESPUEST2     VARCHAR2(1000);
  -- Contenido del xml
-        V_SEGURIDADES   VARCHAR2(4000);
-        V_BODY          CLOB;
+        V_CODIGOMONEDA         VARCHAR2(128);
+        V_FECHAORDEN           VARCHAR2(32);
+        V_FECHAPEDIDO          VARCHAR2(32);
+        V_TIPOPROCESAMIENTO    VARCHAR2(8);
+        V_VERSIONPROCESAMIENTO VARCHAR2(64);
+        V_VENDIDOID            VARCHAR2(16);
+ -- variables
+        V_URL                  VARCHAR2(512);
+        V_XML_PETICION         XMLTYPE;
+        V_XML_RESPUESTA        XMLTYPE;
+        V_TIME_OUT             NUMBER DEFAULT 1500;
+        V_RESPUEST1            VARCHAR2(1000);
+        V_RESPUEST2            VARCHAR2(1000);
+ -- Contenido del xml
+        V_SEGURIDADES          VARCHAR2(4000);
+        V_BODY                 CLOB;
+        V_DETALLE              CLOB;
     BEGIN
  -- Inicializa el encabezado del xml
         SP_XMLINICIAR('http://oracle.e1.bssv.JP420000/', P_ENCABEZADO => V_SEGURIDADES, P_MENSAJE=>P_MENSAJE);
         IF (P_MENSAJE IS NOT NULL) THEN
             RETURN;
         END IF;
+        IF P_MODO='R' THEN
+ -- Consulta Loop detalles
+            FOR R_MOVIMIENTOS IN C_MOVIMIENTOS_REPUESTOS(P_ID) LOOP
+                BEGIN
+ -- Obtiene los datos del encabezado
+                    IF R_MOVIMIENTOS.NUMEROLINEA = 1 THEN
+                        V_CODIGOMONEDA := R_MOVIMIENTOS.MONEDA;
+                        V_FECHAORDEN := TO_CHAR(R_MOVIMIENTOS.FECHATRANSACCION, 'YYYY-MM-DD');
+                        V_FECHAPEDIDO := TO_CHAR(R_MOVIMIENTOS.FECHATRANSACCION, 'YYYY-MM-DD');
+                        V_TIPOPROCESAMIENTO := 'A';
+                        V_VERSIONPROCESAMIENTO := 'ERP0004';
+                        V_VENDIDOID := R_MOVIMIENTOS.SHIPTO;
+                    END IF;
+ -- Obtiene los datos del detalle
+                    V_DETALLE:=V_DETALLE
+                                                                || FN_REMPLAZO_MULTIPLE(G_DETALLE_BODY_CREAR, NEW ARREGLO_TEXTO('?unidadNegocio', '?itemId', '?cantidadOrden', '?enviarId'), NEW ARREGLO_TEXTO(R_MOVIMIENTOS.BODEGA, R_MOVIMIENTOS.CODIGOREPUESTO, R_MOVIMIENTOS.CANTIDADORDENADA, R_MOVIMIENTOS.SOLDTO));
+                EXCEPTION
+                    WHEN NO_DATA_FOUND THEN
+ -- user does not have attribute, continue loop to next record.
+                        GOTO FIN_LOOP;
+                END;
+                <<FIN_LOOP>>
+                NULL;
+            END LOOP;
+        ELSE
+ -- Consulta Loop detalles
+            FOR R_MOVIMIENTOS IN C_MOVIMIENTOS_HERRAMIENTAS(P_ID) LOOP
+                BEGIN
+ -- Obtiene los datos del encabezado
+                    IF R_MOVIMIENTOS.NUMEROLINEA = 1 THEN
+                        V_CODIGOMONEDA := R_MOVIMIENTOS.MONEDA;
+                        V_FECHAORDEN := TO_CHAR(R_MOVIMIENTOS.FECHATRANSACCION, 'YYYY-MM-DD');
+                        V_FECHAPEDIDO := TO_CHAR(R_MOVIMIENTOS.FECHATRANSACCION, 'YYYY-MM-DD');
+                        V_TIPOPROCESAMIENTO := 'A';
+                        V_VERSIONPROCESAMIENTO := 'ERP0004';
+                        V_VENDIDOID := R_MOVIMIENTOS.SHIPTO;
+                    END IF;
+ -- Obtiene los datos del detalle
+                    V_DETALLE:=V_DETALLE
+                                                                || FN_REMPLAZO_MULTIPLE(G_DETALLE_BODY_CREAR, NEW ARREGLO_TEXTO('?unidadNegocio', '?itemId', '?cantidadOrden', '?enviarId'), NEW ARREGLO_TEXTO(R_MOVIMIENTOS.BODEGA, R_MOVIMIENTOS.CODIGOREPUESTO, R_MOVIMIENTOS.CANTIDADORDENADA, R_MOVIMIENTOS.SOLDTO));
+                EXCEPTION
+                    WHEN NO_DATA_FOUND THEN
+ -- user does not have attribute, continue loop to next record.
+                        GOTO FIN_LOOP;
+                END;
+                <<FIN_LOOP>>
+                NULL;
+            END LOOP;
+        END IF;
  -- Inicializa el body del xml
         V_BODY:=V_SEGURIDADES
-            || FN_REMPLAZO_MULTIPLE(G_BODY_CREAR, NEW ARREGLO_TEXTO('?unidadNegocio', '?codigoMoneda', '?fechaOrden', '?fechaPedido', '?itemId', '?cantidadOrden', '?enviarId', '?tipoProcesamiento', '?versionProcesamiento', '?vendidoId'), NEW ARREGLO_TEXTO(P_UNIDADNEGOCIO, P_CODIGOMONEDA, P_FECHAORDEN, P_FECHAPEDIDO, P_ITEMID, P_CATIDADORDEN, P_ENVIARID, P_TIPOPROCESAMIENTO, P_VERSIONPROCESAMIENTO, P_VENDIDOID));
+                                              || FN_REMPLAZO_MULTIPLE(G_BODY_CREAR, NEW ARREGLO_TEXTO( '?codigoMoneda', '?fechaOrden', '?fechaPedido', '?tipoProcesamiento', '?versionProcesamiento', '?vendidoId', '?detalle'), NEW ARREGLO_TEXTO(V_CODIGOMONEDA, V_FECHAORDEN, V_FECHAPEDIDO, V_TIPOPROCESAMIENTO, V_VERSIONPROCESAMIENTO, V_VENDIDOID, V_DETALLE));
  -- busca la valor con la url de la tabla t_corp_udc
         BEGIN
             <<BUSCAR_URL>>
@@ -78,14 +122,14 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  -- llama al servicio
             V_XML_RESPUESTA:= APEX_WEB_SERVICE.MAKE_REQUEST( P_URL => V_URL, P_ENVELOPE => V_BODY, P_TRANSFER_TIMEOUT => V_TIME_OUT );
             PK_CORP_DEBUG.INFO('JDE', 'PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA', 'V_XML_RESPUESTA '
-                ||V_XML_RESPUESTA.GETCLOBVAL());
+                                                                                ||V_XML_RESPUESTA.GETCLOBVAL());
             DBMS_OUTPUT.PUT_LINE('V_XML_RESPUESTA '
-                ||V_XML_RESPUESTA.GETCLOBVAL());
+                                 ||V_XML_RESPUESTA.GETCLOBVAL());
  --Verifica error del servicio
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al llamar al servicio '
-                    || V_URL;
+                             || V_URL;
                 RETURN;
         END EJECUTAR_SERVICIO;
  --
@@ -93,93 +137,80 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         BEGIN
             <<VERIFICAR_ERROR>>
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//faultcode/text()').GETSTRINGVAL(),
-                EXTRACT(V_XML_RESPUESTA,
-                '//faultstring/text()').GETSTRINGVAL() INTO V_RESPUEST1,
+                EXTRACT(V_XML_RESPUESTA, '//faultcode/text()').GETSTRINGVAL(),
+                EXTRACT(V_XML_RESPUESTA, '//faultstring/text()').GETSTRINGVAL() INTO V_RESPUEST1,
                 V_RESPUEST2
             FROM
                 DUAL;
             IF V_RESPUEST1 IS NOT NULL THEN
                 P_MENSAJE := 'Error del servicio '
-                    || V_RESPUEST1
-                    ||' '
-                    || V_RESPUEST2;
+                             || V_RESPUEST1
+                             ||' '
+                             || V_RESPUEST2;
                 RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
                 RETURN;
             END IF;
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al procesar la respuesta del servicio '
-                    || V_RESPUEST1
-                    ||' '
-                    || V_RESPUEST2;
+                             || V_RESPUEST1
+                             ||' '
+                             || V_RESPUEST2;
                 RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
         END VERIFICAR_ERROR;
  -- Toma los datos de la respuesta correcta
         BEGIN
             <<VERIFICAR_RESPUESTA_VALIDA>>
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/dates/orderDate/text()').GETSTRINGVAL() INTO P_FECHAORDENOUT
+                EXTRACT(V_XML_RESPUESTA, '//header/dates/orderDate/text()').GETSTRINGVAL() INTO P_FECHAORDENOUT
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/detail/product/item/itemCatalog/text()').GETSTRINGVAL() INTO P_ITEMCATALOGO
+                EXTRACT(V_XML_RESPUESTA, '//header/detail/product/item/itemCatalog/text()').GETSTRINGVAL() INTO P_ITEMCATALOGO
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/detail/product/item/itemProduct/text()').GETSTRINGVAL() INTO P_ITEMPRODUCTO
+                EXTRACT(V_XML_RESPUESTA, '//header/detail/product/item/itemProduct/text()').GETSTRINGVAL() INTO P_ITEMPRODUCTO
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/detail/shipTo/entityTaxId/text()').GETSTRINGVAL() INTO P_ENVIARTAXID
+                EXTRACT(V_XML_RESPUESTA, '//header/detail/shipTo/entityTaxId/text()').GETSTRINGVAL() INTO P_ENVIARTAXID
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/salesOrderKey/documentCompany/text()').GETSTRINGVAL() INTO P_DOCUMENTCOMPANY
+                EXTRACT(V_XML_RESPUESTA, '//header/salesOrderKey/documentCompany/text()').GETSTRINGVAL() INTO P_DOCUMENTCOMPANY
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/salesOrderKey/documentNumber/text()').GETSTRINGVAL() INTO P_DOCUMENTNUMERO
+                EXTRACT(V_XML_RESPUESTA, '//header/salesOrderKey/documentNumber/text()').GETSTRINGVAL() INTO P_DOCUMENTNUMERO
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/salesOrderKey/documentTypeCode/text()').GETSTRINGVAL() INTO P_DOCUMENTTIPO
+                EXTRACT(V_XML_RESPUESTA, '//header/salesOrderKey/documentTypeCode/text()').GETSTRINGVAL() INTO P_DOCUMENTTIPO
             FROM
                 DUAL;
             SELECT
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/addressLine1/text()').GETSTRINGVAL()) || ' ' || 
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/addressLine2/text()').GETSTRINGVAL()) || ' ' || 
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/addressLine3/text()').GETSTRINGVAL()) || ' ' || 
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/addressLine4/text()').GETSTRINGVAL()) INTO P_ENVIARDIRECCION
+                TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/addressLine1/text()').GETSTRINGVAL())
+                || ' '
+                || TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/addressLine2/text()').GETSTRINGVAL())
+                   || ' '
+                   || TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/addressLine3/text()').GETSTRINGVAL())
+                      || ' '
+                      || TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/addressLine4/text()').GETSTRINGVAL()) INTO P_ENVIARDIRECCION
             FROM
                 DUAL;
             SELECT
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/city/text()').GETSTRINGVAL()) || ' ' || 
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/countryCode/text()').GETSTRINGVAL()) || ' ' || 
-                TRIM(EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/countyCode/text()').GETSTRINGVAL()) INTO P_ENVIARCIUDAD
+                TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/city/text()').GETSTRINGVAL())
+                || ' '
+                || TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/countryCode/text()').GETSTRINGVAL())
+                   || ' '
+                   || TRIM(EXTRACT(V_XML_RESPUESTA, '//header/shipTo/countyCode/text()').GETSTRINGVAL()) INTO P_ENVIARCIUDAD
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//header/shipTo/mailingName/text()').GETSTRINGVAL() INTO P_DESTINATARIO
+                EXTRACT(V_XML_RESPUESTA, '//header/shipTo/mailingName/text()').GETSTRINGVAL() INTO P_DESTINATARIO
             FROM
                 DUAL;
- 
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al leer una respuesta valida del servicio ';
@@ -191,6 +222,7 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
+        P_VERSION IN VARCHAR2,
         P_ITEM OUT VARCHAR2,
         P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
@@ -213,7 +245,7 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         END IF;
  -- Inicializa el body del xml
         V_BODY:=V_SEGURIDADES
-            || FN_REMPLAZO_MULTIPLE(G_BODY_CONFIRMAR, NEW ARREGLO_TEXTO('?documentoId', '?documentoNumero', '?documentoTipo'), NEW ARREGLO_TEXTO(P_DOCUMENTOID, P_DOCUMENTONUMERO, P_DOCUMENTOTIPO));
+                                              || FN_REMPLAZO_MULTIPLE(G_BODY_CONFIRMAR, NEW ARREGLO_TEXTO('?documentoId', '?documentoNumero', '?documentoTipo', '?version'), NEW ARREGLO_TEXTO(P_DOCUMENTOID, P_DOCUMENTONUMERO, P_DOCUMENTOTIPO, P_VERSION));
  -- busca la valor con la url de la tabla t_corp_udc
         BEGIN
             <<BUSCAR_URL>>
@@ -240,14 +272,14 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  -- llama al servicio
             V_XML_RESPUESTA:= APEX_WEB_SERVICE.MAKE_REQUEST( P_URL => V_URL, P_ENVELOPE => V_BODY, P_TRANSFER_TIMEOUT => V_TIME_OUT );
             PK_CORP_DEBUG.INFO('JDE', 'PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA', 'V_XML_RESPUESTA '
-                ||V_XML_RESPUESTA.GETCLOBVAL());
+                                                                                ||V_XML_RESPUESTA.GETCLOBVAL());
             DBMS_OUTPUT.PUT_LINE('V_XML_RESPUESTA '
-                ||V_XML_RESPUESTA.GETCLOBVAL());
+                                 ||V_XML_RESPUESTA.GETCLOBVAL());
  --Verifica error del servicio
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al llamar al servicio '
-                    || V_URL;
+                             || V_URL;
                 RETURN;
         END EJECUTAR_SERVICIO;
  --
@@ -255,41 +287,35 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         BEGIN
             <<VERIFICAR_ERROR>>
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//faultcode/text()').GETSTRINGVAL(),
-                EXTRACT(V_XML_RESPUESTA,
-                '//faultstring/text()').GETSTRINGVAL() INTO V_RESPUEST1,
+                EXTRACT(V_XML_RESPUESTA, '//faultcode/text()').GETSTRINGVAL(),
+                EXTRACT(V_XML_RESPUESTA, '//faultstring/text()').GETSTRINGVAL() INTO V_RESPUEST1,
                 V_RESPUEST2
             FROM
                 DUAL;
         EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al procesar la respuesta del servicio '
-                    || V_RESPUEST1
-                    ||' '
-                    || V_RESPUEST2;
+                             || V_RESPUEST1
+                             ||' '
+                             || V_RESPUEST2;
                 DBMS_OUTPUT.PUT_LINE(P_MENSAJE);
         END VERIFICAR_ERROR;
  -- Toma los datos de la respuesta correcta
         BEGIN
             <<VERIFICAR_RESPUESTA_VALIDA>>
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//dataItem/text()').GETSTRINGVAL() INTO P_ITEM
+                EXTRACT(V_XML_RESPUESTA, '//dataItem/text()').GETSTRINGVAL() INTO P_ITEM
             FROM
                 DUAL;
             SELECT
-                EXTRACT(V_XML_RESPUESTA,
-                '//JDEnterpriseOneEventPoint01/text()').GETSTRINGVAL() INTO P_EVENT_POINT
+                EXTRACT(V_XML_RESPUESTA, '//JDEnterpriseOneEventPoint01/text()').GETSTRINGVAL() INTO P_EVENT_POINT
             FROM
                 DUAL;
-
-            EXCEPTION
+        EXCEPTION
             WHEN OTHERS THEN
                 P_MENSAJE := 'Error al leer una respuesta valida del servicio ';
                 RAISE_APPLICATION_ERROR(-20001, P_MENSAJE);
         END VERIFICAR_RESPUESTA_VALIDA;
- 
     END SP_CONFIRMA_ORDEN_VENTA; --
  -- Proceso para inizializar el encabezado del xml
     PROCEDURE SP_XMLINICIAR(
@@ -344,4 +370,3 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
     END FN_REMPLAZO_MULTIPLE; --
  --
 END PK_JDE_PEDIDOS_WS;
-/
