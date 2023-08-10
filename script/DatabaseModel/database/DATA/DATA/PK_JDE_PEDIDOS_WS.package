@@ -125,7 +125,7 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
          <companyKeyEDIDocumentKeyCo>?documentoId</companyKeyEDIDocumentKeyCo>
          <EDIDocumentNumber>?documentoNumero</EDIDocumentNumber>
          <EDIDocumentType>?documentoTipo</EDIDocumentType>
-         <version>?version</version>
+         <version>ERP0004</version>
       </ns1:SalesShippingConfirmation>
    </env:Body>
    </soapenv:Envelope>';
@@ -205,6 +205,42 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
             CABECERA.ID_MOVIMIENTOS_INVENTARIO = P_ID
             AND CABECERA.ID_SIS_TIPOS_MOVIMIENTO IN (3, 7);
  --
+ -- Cursor para verificar inventario de herramientas
+    CURSOR C_MOVIMIENTOS_PENDIENTES_HER IS
+        SELECT
+            ID_MOVIMIENTOS_INVENTARIO
+        FROM
+            MPZML_HER.MOVIMIENTOS_INVENTARIO T1
+        WHERE
+            T1.ID_MOVIMIENTOS_INVENTARIO NOT IN(
+                SELECT
+                    ID_MOVIMIENTOS_INVENTARIO
+                FROM
+                    DATA.T_BT01_PEDIDO
+                WHERE
+                    MODO = 'H'
+            )
+            AND T1.FECHA_MOVIMIENTOS_INVENTARIO < (SYSDATE - (1/24))
+            AND T1.ID_SIS_TIPOS_MOVIMIENTO IN (3, 7);
+ --
+ -- Cursor para verificar inventario de repuestos
+    CURSOR C_MOVIMIENTOS_PENDIENTES_REP IS
+        SELECT
+            ID_MOVIMIENTOS_INVENTARIO
+        FROM
+            MPZML_REP.MOVIMIENTOS_INVENTARIO T1
+        WHERE
+            T1.ID_MOVIMIENTOS_INVENTARIO NOT IN(
+                SELECT
+                    ID_MOVIMIENTOS_INVENTARIO
+                FROM
+                    DATA.T_BT01_PEDIDO
+                WHERE
+                    MODO = 'R'
+            )
+            AND T1.FECHA_MOVIMIENTOS_INVENTARIO < (SYSDATE - (1/24))
+            AND T1.ID_SIS_TIPOS_MOVIMIENTO IN (3, 7);
+ --
  -- Procesar pedidos al servicio de jde.
     PROCEDURE SP_CREAR_ORDEN_VENTA(
         P_ID IN NUMBER,
@@ -227,7 +263,6 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
-        P_VERSION IN VARCHAR2,
         P_ITEM OUT VARCHAR2,
         P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
@@ -238,6 +273,11 @@ CREATE OR REPLACE PACKAGE "PK_JDE_PEDIDOS_WS" AS
         P_BSSV IN VARCHAR2,
         P_ENCABEZADO OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
+    );
+ --
+ -- Proceso para ejecutar de manera programada en envio de pedidos
+    PROCEDURE SP_ENVIARPEDIDOS(
+        P_DATE IN DATE
     );
  --
  -- Funcion para remplazo multimple de variables

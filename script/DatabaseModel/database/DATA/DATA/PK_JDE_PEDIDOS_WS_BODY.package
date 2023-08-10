@@ -222,7 +222,6 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         P_DOCUMENTOID IN VARCHAR2,
         P_DOCUMENTONUMERO IN VARCHAR2,
         P_DOCUMENTOTIPO IN VARCHAR2,
-        P_VERSION IN VARCHAR2,
         P_ITEM OUT VARCHAR2,
         P_EVENT_POINT OUT VARCHAR2,
         P_MENSAJE OUT VARCHAR2
@@ -245,7 +244,7 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
         END IF;
  -- Inicializa el body del xml
         V_BODY:=V_SEGURIDADES
-                                              || FN_REMPLAZO_MULTIPLE(G_BODY_CONFIRMAR, NEW ARREGLO_TEXTO('?documentoId', '?documentoNumero', '?documentoTipo', '?version'), NEW ARREGLO_TEXTO(P_DOCUMENTOID, P_DOCUMENTONUMERO, P_DOCUMENTOTIPO, P_VERSION));
+                                              || FN_REMPLAZO_MULTIPLE(G_BODY_CONFIRMAR, NEW ARREGLO_TEXTO('?documentoId', '?documentoNumero', '?documentoTipo'), NEW ARREGLO_TEXTO(P_DOCUMENTOID, P_DOCUMENTONUMERO, P_DOCUMENTOTIPO));
  -- busca la valor con la url de la tabla t_corp_udc
         BEGIN
             <<BUSCAR_URL>>
@@ -349,6 +348,216 @@ CREATE OR REPLACE PACKAGE BODY "PK_JDE_PEDIDOS_WS" AS
  -- Carga las credenciales en las seguridades del XML
         P_ENCABEZADO := FN_REMPLAZO_MULTIPLE(G_SEGURIDADES, NEW ARREGLO_TEXTO('?BSSV', '?usuario', '?clave'), NEW ARREGLO_TEXTO(P_BSSV, V_VALOR, V_VALOR2) );
     END SP_XMLINICIAR; --
+ --
+ -- Proceso para ejecutar de manera programada en envio de pedidos
+    PROCEDURE SP_ENVIARPEDIDOS(
+        P_DATE IN DATE
+    )AS
+ -- Indice pedido
+        V_ID_PEDIDO            NUMBER;
+ -- variables del sistema primer paso
+        V_FECHAORDENOUT        VARCHAR2(32);
+        V_ITEMCATALOGO         VARCHAR2(512);
+        V_ITEMPRODUCTO         VARCHAR2(512);
+        V_ENVIARTAXID          VARCHAR2(512);
+        V_DOCUMENTCOMPANY      VARCHAR2(512);
+        V_DOCUMENTNUMERO       VARCHAR2(512);
+        V_DOCUMENTTIPO         VARCHAR2(512);
+        V_ENVIARDIRECCION      VARCHAR2(512);
+        V_ENVIARCIUDAD         VARCHAR2(512);
+        V_DESTINATARIO         VARCHAR2(512);
+ -- variables del sistema segundo paso
+        V_ITEM                 VARCHAR(512);
+        V_EVENT_POINT          VARCHAR(512);
+ -- mensajes de los pasos de la ejecucion.
+        V_RESULTADO_CORREO     BOOLEAN;
+        V_ESTADO_CORREO        VARCHAR2(16);
+        V_MENSAJE_ORDEN        VARCHAR2(512);
+        V_MENSAJE_CONFIRMACION VARCHAR2(512);
+    BEGIN
+ --Consulta loop movimientos pendientes
+        FOR R_HERRAMIENTAS IN C_MOVIMIENTOS_PENDIENTES_HER LOOP
+            BEGIN
+ -- Obtiene los datos del encabezado para crear el pedido
+                PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA(R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO, 'H', V_FECHAORDENOUT, V_ITEMCATALOGO, V_ITEMPRODUCTO, V_ENVIARTAXID, V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ENVIARDIRECCION, V_ENVIARCIUDAD, V_DESTINATARIO, V_MENSAJE_ORDEN);
+                IF(V_MENSAJE_ORDEN IS NULL) THEN
+ -- Obtiene los datos de confirmacion del pedido
+                    V_MENSAJE_ORDEN:= 'ok';
+                    PK_JDE_PEDIDOS_WS.SP_CONFIRMA_ORDEN_VENTA(V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ITEM, V_EVENT_POINT, V_MENSAJE_CONFIRMACION);
+                    IF V_MENSAJE_CONFIRMACION IS NULL THEN
+                        V_MENSAJE_CONFIRMACION:= 'ok';
+                    END IF;
+                END IF;
+ -- Se envia el correo
+                PK_CORP_CORREO.SP_ENVIO('MP10', 'fguevara@zaimella.com', 'notificacion@zaimella.com', '[PEDIDOS-JWS]', 'El pedido de herramientas con el codigo '
+                                                                                                                                             || R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO
+                                                                                                                                             || ' se envio con el estado '
+                                                                                                                                             || V_MENSAJE_ORDEN
+                                                                                                                                             || ' y se confirmo con el estado '
+                                                                                                                                             || V_MENSAJE_CONFIRMACION, V_RESULTADO_CORREO);
+                IF V_RESULTADO_CORREO THEN
+                    V_ESTADO_CORREO := 'OK';
+                ELSE
+                    V_ESTADO_CORREO := 'ERROR';
+                END IF;
+ -- Secuencia
+                SELECT
+                    SQ_BT01_PEDIDO.NEXTVAL INTO V_ID_PEDIDO
+                FROM
+                    DUAL;
+ -- Se crea entrada a la tabla para evitar una sobre consulta.
+                INSERT INTO "DATA".T_BT01_PEDIDO (
+                    ID,
+                    USUARIOFECHA,
+                    VALORTEXTO,
+                    VALORNUMERO,
+                    MODO,
+                    ID_MOVIMIENTOS_INVENTARIO,
+                    CREAR_ORDEN,
+                    CONFIR_ORDEN,
+                    ENVIO_CORREO
+                ) VALUES(
+                    V_ID_PEDIDO,
+                    SYSDATE,
+                    '',
+                    0,
+                    'H',
+                    R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO,
+                    V_MENSAJE_ORDEN,
+                    V_MENSAJE_CONFIRMACION,
+                    V_ESTADO_CORREO
+                );
+                COMMIT;
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    GOTO FIN_LOOP_HERRAMIENTAS;
+            END;
+            <<FIN_LOOP_HERRAMIENTAS>>
+            NULL;
+        END LOOP;
+ --
+ -- Busca los pedidos pendientes de repuestos
+ --Consulta loop movimientos pendientes
+        FOR R_HERRAMIENTAS IN C_MOVIMIENTOS_PENDIENTES_HER LOOP
+            BEGIN
+ -- Obtiene los datos del encabezado para crear el pedido
+                PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA(R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO, 'H', V_FECHAORDENOUT, V_ITEMCATALOGO, V_ITEMPRODUCTO, V_ENVIARTAXID, V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ENVIARDIRECCION, V_ENVIARCIUDAD, V_DESTINATARIO, V_MENSAJE_ORDEN);
+                IF(V_MENSAJE_ORDEN IS NULL) THEN
+ -- Obtiene los datos de confirmacion del pedido
+                    V_MENSAJE_ORDEN:= 'ok';
+                    PK_JDE_PEDIDOS_WS.SP_CONFIRMA_ORDEN_VENTA(V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ITEM, V_EVENT_POINT, V_MENSAJE_CONFIRMACION);
+                    IF V_MENSAJE_CONFIRMACION IS NULL THEN
+                        V_MENSAJE_CONFIRMACION:= 'ok';
+                    END IF;
+                END IF;
+ -- Se envia el correo
+                PK_CORP_CORREO.SP_ENVIO('MP10', 'fguevara@zaimella.com', 'notificacion@zaimella.com', '[PEDIDOS-HERRAMIENTAS]', 'El pedido de herramientas con el codigo '
+                                                                                                                                                      || R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO
+                                                                                                                                                      || ' se envio con el estado '
+                                                                                                                                                      || V_MENSAJE_ORDEN
+                                                                                                                                                      || ' y se confirmo con el estado '
+                                                                                                                                                      || V_MENSAJE_CONFIRMACION, V_RESULTADO_CORREO);
+                IF V_RESULTADO_CORREO THEN
+                    V_ESTADO_CORREO := 'OK';
+                ELSE
+                    V_ESTADO_CORREO := 'ERROR';
+                END IF;
+ -- Secuencia
+                SELECT
+                    SQ_BT01_PEDIDO.NEXTVAL INTO V_ID_PEDIDO
+                FROM
+                    DUAL;
+ -- Se crea entrada a la tabla para evitar una sobre consulta.
+                INSERT INTO "DATA".T_BT01_PEDIDO (
+                    ID,
+                    USUARIOFECHA,
+                    VALORTEXTO,
+                    VALORNUMERO,
+                    MODO,
+                    ID_MOVIMIENTOS_INVENTARIO,
+                    CREAR_ORDEN,
+                    CONFIR_ORDEN,
+                    ENVIO_CORREO
+                ) VALUES(
+                    V_ID_PEDIDO,
+                    SYSDATE,
+                    '',
+                    0,
+                    'H',
+                    R_HERRAMIENTAS.ID_MOVIMIENTOS_INVENTARIO,
+                    V_MENSAJE_ORDEN,
+                    V_MENSAJE_CONFIRMACION,
+                    V_ESTADO_CORREO
+                );
+                COMMIT;
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    GOTO FIN_LOOP_HERRAMIENTAS;
+            END;
+            <<FIN_LOOP_HERRAMIENTAS>>
+            NULL;
+        END LOOP;
+ --Consulta loop movimientos pendientes
+        FOR R_REPUESTOS IN C_MOVIMIENTOS_PENDIENTES_REP LOOP
+            BEGIN
+ -- Obtiene los datos del encabezado para crear el pedido
+                PK_JDE_PEDIDOS_WS.SP_CREAR_ORDEN_VENTA(R_REPUESTOS.ID_MOVIMIENTOS_INVENTARIO, 'P', V_FECHAORDENOUT, V_ITEMCATALOGO, V_ITEMPRODUCTO, V_ENVIARTAXID, V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ENVIARDIRECCION, V_ENVIARCIUDAD, V_DESTINATARIO, V_MENSAJE_ORDEN);
+                IF(V_MENSAJE_ORDEN IS NULL) THEN
+ -- Obtiene los datos de confirmacion del pedido
+                    V_MENSAJE_ORDEN:= 'ok';
+                    PK_JDE_PEDIDOS_WS.SP_CONFIRMA_ORDEN_VENTA(V_DOCUMENTCOMPANY, V_DOCUMENTNUMERO, V_DOCUMENTTIPO, V_ITEM, V_EVENT_POINT, V_MENSAJE_CONFIRMACION);
+                    IF V_MENSAJE_CONFIRMACION IS NULL THEN
+                        V_MENSAJE_CONFIRMACION:= 'ok';
+                    END IF;
+                END IF;
+ -- Se envia el correo
+                PK_CORP_CORREO.SP_ENVIO('MP10', 'fguevara@zaimella.com', 'notificacion@zaimella.com', '[PEDIDOS-REPUESTOS]', 'El pedido de repuestos con el codigo '
+                                                                                                                                                  || R_REPUESTOS.ID_MOVIMIENTOS_INVENTARIO
+                                                                                                                                                   || ' se envio con el estado '
+                                                                                                                                                   || V_MENSAJE_ORDEN
+                                                                                                                                                   || ' y se confirmo con el estado '
+                                                                                                                                                   || V_MENSAJE_CONFIRMACION, V_RESULTADO_CORREO);
+                IF V_RESULTADO_CORREO THEN
+                    V_ESTADO_CORREO := 'OK';
+                ELSE
+                    V_ESTADO_CORREO := 'ERROR';
+                END IF;
+ -- Secuencia
+                SELECT
+                    SQ_BT01_PEDIDO.NEXTVAL INTO V_ID_PEDIDO
+                FROM
+                    DUAL;
+ -- Se crea entrada a la tabla para evitar una sobre consulta.
+                INSERT INTO "DATA".T_BT01_PEDIDO (
+                    ID,
+                    USUARIOFECHA,
+                    VALORTEXTO,
+                    VALORNUMERO,
+                    MODO,
+                    ID_MOVIMIENTOS_INVENTARIO,
+                    CREAR_ORDEN,
+                    CONFIR_ORDEN,
+                    ENVIO_CORREO
+                ) VALUES(
+                    V_ID_PEDIDO,
+                    SYSDATE,
+                    '',
+                    0,
+                    'P',
+                    R_REPUESTOS.ID_MOVIMIENTOS_INVENTARIO,
+                    V_MENSAJE_ORDEN,
+                    V_MENSAJE_CONFIRMACION,
+                    V_ESTADO_CORREO
+                );
+                COMMIT;
+            EXCEPTION
+                WHEN NO_DATA_FOUND THEN
+                    GOTO FIN_LOOP_REPUESTOS;
+            END;
+            <<FIN_LOOP_REPUESTOS>>
+            NULL;
+        END LOOP;
+    END; --
  -- Funcion para remplazo multimple de variables
     FUNCTION FN_REMPLAZO_MULTIPLE(
         P_CADENA IN CLOB,
