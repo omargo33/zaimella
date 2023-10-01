@@ -1,6 +1,0 @@
-<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
-  <system systemId="https://192.168.5.111:8082/DV900/SalesOrderManager/#%7Bhttp%3A%2F%2Foracle.e1.bssv.JP420000%2F%7DSalesOrderManagerService?wsdl"
-          uri="../jp420000/bssv/e1/oracle/SalesOrderManagerService.wsdl"/>
-  <system systemId="https://192.168.5.111:8082/DV900/ShippingConfirmation/#%7Bhttp%3A%2F%2Foracle.e1.bssv.JP594205%2F%7DShippingConfirmationService?wsdl"
-          uri="../jp594205/bssv/e1/oracle/ShippingConfirmationService.wsdl"/>
-</catalog>
